@@ -13,7 +13,7 @@ from rl.advisor import AdvisorState
 from rl.advisor_web import UI_PATH, example_state, make_handler, qualification_summary
 from rl.eval import QUALIFICATION_GATES
 from rl.hybrid_policy import NeuralGuidanceConfig
-from rl.search_policy import PIMCConfig
+from rl.search_policy import PIMCConfig, policy_implementation_identity
 
 
 class _Advice:
@@ -41,6 +41,7 @@ class _Advisor:
     fixed_mode = None
     fixed_trump_suit = None
     manifest_sha256 = "def"
+    implementation_identity = policy_implementation_identity()
 
     def advise(self, state):
         assert isinstance(state, AdvisorState)
@@ -66,6 +67,8 @@ def test_qualification_summary_extracts_gate_evidence(tmp_path: Path) -> None:
                 "model": {"sha256": "abc"},
                 "run": {"manifest_sha256": "def"},
                 "candidate_policy": {
+                    "type": "NeuralGuidedPIMCPolicy",
+                    "implementation": _Advisor.implementation_identity,
                     "model_sha256": "abc",
                     "public_information_only": True,
                     "search_profile": STANDARD_RULES_PROFILE.to_dict(),
@@ -142,6 +145,13 @@ def test_qualification_summary_extracts_gate_evidence(tmp_path: Path) -> None:
     assert summary[0]["report"] == "report.json"
 
     tampered = json.loads(path.read_text())
+    tampered["candidate_policy"]["implementation"]["sha256"] = "0" * 64
+    path.write_text(json.dumps(tampered))
+    with pytest.raises(ValueError, match="policy implementation identity"):
+        qualification_summary([path], advisor=_Advisor())  # type: ignore[arg-type]
+
+    tampered = json.loads(path.read_text())
+    tampered["candidate_policy"]["implementation"] = _Advisor.implementation_identity
     tampered["opponents"]["random"]["metrics"]["overall"]["win_rate"] = 0.1
     path.write_text(json.dumps(tampered))
     with pytest.raises(ValueError, match="inconsistent gate checks"):
@@ -156,6 +166,8 @@ def test_qualification_summary_rejects_a_different_model(tmp_path: Path) -> None
                 "run": {"manifest_sha256": "def"},
                 "model": {"sha256": "different"},
                 "candidate_policy": {
+                    "type": "NeuralGuidedPIMCPolicy",
+                    "implementation": _Advisor.implementation_identity,
                     "model_sha256": "different",
                     "public_information_only": True,
                     "search_profile": STANDARD_RULES_PROFILE.to_dict(),

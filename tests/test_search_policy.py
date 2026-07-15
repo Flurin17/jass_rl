@@ -23,6 +23,7 @@ from rl.search_policy import (
     PIMCConfig,
     PIMCSearchPolicy,
     _inferred_constraints,
+    _play,
     _Position,
     _Simulation,
     _utility,
@@ -197,6 +198,40 @@ def test_terminal_utility_includes_current_score_and_win_bonus() -> None:
 
     simulation.future_points = [50, 80]
     assert _utility(simulation, terminal_win_bonus=30.0) == -80.0
+
+
+def test_simulated_future_stock_is_awarded_once_before_contract_factor() -> None:
+    simulation = _Simulation(
+        hands=[
+            [Card("eicheln", "K"), Card("eicheln", "Q")],
+            [],
+            [],
+            [],
+        ],
+        current_trick=[
+            (1, Card("rosen", "6")),
+            (2, Card("rosen", "7")),
+            (3, Card("rosen", "8")),
+        ],
+        leader=1,
+        trick_index=0,
+        tricks_won=[0, 0],
+        initial_points=[0, 0],
+        future_points=[0, 0],
+        mode=MODE_TRUMP,
+        trump_suit="eicheln",
+        factor=2,
+        match_bonus=100,
+        allow_stock=True,
+    )
+
+    _play(simulation, 0, Card("eicheln", "K"))
+    points_after_trick = simulation.future_points[0]
+    _play(simulation, 0, Card("eicheln", "Q"))
+
+    assert simulation.future_points[0] == points_after_trick + 20
+    assert simulation.stock_announced_by == {0}
+    assert _utility(simulation) == (points_after_trick + 20) * 2
 
 
 def test_verardo_opponent_rollout_uses_documented_follow_policy() -> None:

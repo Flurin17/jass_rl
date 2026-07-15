@@ -155,6 +155,10 @@ def qualification_summary(
             mismatches.append("model SHA-256")
         if candidate.get("model_sha256") != expected_model_sha:
             mismatches.append("candidate model SHA-256")
+        if candidate.get("type") != "NeuralGuidedPIMCPolicy":
+            mismatches.append("candidate policy type")
+        if candidate.get("implementation") != advisor.implementation_identity:
+            mismatches.append("policy implementation identity")
         if candidate.get("search_profile") != expected_profile:
             mismatches.append("rules profile")
         if candidate.get("search_config") != expected_search:
@@ -260,6 +264,7 @@ def make_handler(
     status = {
         "model_sha256": advisor.policy.model_sha256,
         "manifest_sha256": advisor.manifest_sha256,
+        "policy_implementation": advisor.implementation_identity,
         "profile": advisor.profile.version,
         "search": {
             "determinizations": advisor.search.config.determinizations,

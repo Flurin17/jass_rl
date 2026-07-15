@@ -133,7 +133,7 @@ class EvaluationEnvironment:
         trump_suit = payload.get("trump_suit")
         if trump_suit is not None and trump_suit not in SUITS:
             raise ValueError("manifest environment.trump_suit must be a Swiss suit or null")
-        if mode is not None:
+        if mode is not None and not (mode == MODE_TRUMP and trump_suit is None):
             profile.contract_factor(mode, trump_suit)
 
         ctde = payload.get("ctde", False)

@@ -838,6 +838,7 @@ def _load_run_fork(
 def train(config: TrainConfig) -> Path:
     config.validate()
     workflow_started = time.perf_counter()
+    workflow_started_at = datetime.datetime.now(datetime.UTC).isoformat()
     import torch
 
     # PyTorch otherwise chooses a host-dependent value (six on the supported
@@ -1010,21 +1011,58 @@ def train(config: TrainConfig) -> Path:
     durable_timesteps = int(model.num_timesteps)
     invocation_start_timesteps = durable_timesteps
     learning_seconds = 0.0
+    prior_resource_events = manifest.get("resource_usage_events", [])
+    if not isinstance(prior_resource_events, list):
+        raise ValueError("run manifest resource_usage_events must be a list")
+    prior_resource_events = list(prior_resource_events)
+    legacy_resource_usage = manifest.get("resource_usage")
+    if not prior_resource_events and isinstance(legacy_resource_usage, dict):
+        prior_resource_events.append(
+            {"status": "legacy-recorded", **legacy_resource_usage}
+        )
 
     def record_resource_usage() -> None:
         elapsed = time.perf_counter() - workflow_started
         trained = int(model.num_timesteps) - invocation_start_timesteps
         raw_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        manifest["resource_usage"] = {
+        current_event = {
+            "started_at": workflow_started_at,
+            "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "status": manifest.get("status"),
             "device": str(getattr(model, "device", config.device)),
             "cpu_threads": int(torch.get_num_threads()),
             "workflow_seconds": elapsed,
             "learning_seconds": learning_seconds,
+            "start_timesteps": invocation_start_timesteps,
+            "end_timesteps": int(model.num_timesteps),
             "trained_timesteps_this_invocation": trained,
             "steps_per_learning_second": (
                 trained / learning_seconds if learning_seconds > 0.0 else None
             ),
             "peak_rss_bytes": int(raw_peak if sys.platform == "darwin" else raw_peak * 1024),
+        }
+        events = [*prior_resource_events, current_event]
+        manifest["resource_usage_events"] = events
+        total_learning = sum(float(event.get("learning_seconds", 0.0)) for event in events)
+        total_trained = sum(
+            int(event.get("trained_timesteps_this_invocation", 0))
+            for event in events
+        )
+        manifest["resource_usage"] = {
+            "invocations": len(events),
+            "workflow_seconds": sum(
+                float(event.get("workflow_seconds", 0.0)) for event in events
+            ),
+            "learning_seconds": total_learning,
+            "trained_timesteps": total_trained,
+            "steps_per_learning_second": (
+                total_trained / total_learning if total_learning > 0.0 else None
+            ),
+            "peak_rss_bytes": max(
+                int(event.get("peak_rss_bytes", 0)) for event in events
+            ),
+            "latest_device": current_event["device"],
+            "latest_cpu_threads": current_event["cpu_threads"],
         }
 
     try:

@@ -64,7 +64,11 @@ from rl.run_manifest import (
     load_manifest,
     write_manifest,
 )
-from rl.search_policy import PIMCConfig, PIMCSearchPolicy
+from rl.search_policy import (
+    PIMCConfig,
+    PIMCSearchPolicy,
+    policy_implementation_identity,
+)
 
 CARD_INDEX = {card: index for index, card in enumerate(ALL_CARDS)}
 VALID_MODES = (MODE_TRUMP, MODE_OBEABE, MODE_UNEUFE)
@@ -517,8 +521,10 @@ class JassAdvisor:
             raise ValueError("trump_only_bidding requires bidding_enabled")
         if fixed_mode is not None and fixed_mode not in VALID_MODES:
             raise ValueError(f"fixed_mode must be one of {VALID_MODES} or None")
-        if fixed_mode == MODE_TRUMP and fixed_trump_suit not in SUITS:
-            raise ValueError("fixed trump mode requires a fixed_trump_suit")
+        if fixed_mode == MODE_TRUMP and (
+            fixed_trump_suit is not None and fixed_trump_suit not in SUITS
+        ):
+            raise ValueError("fixed_trump_suit must be a Swiss suit")
         if fixed_mode != MODE_TRUMP and fixed_trump_suit is not None:
             raise ValueError("fixed_trump_suit requires fixed_mode='trump'")
         if manifest_sha256 is not None and (
@@ -534,6 +540,7 @@ class JassAdvisor:
         self.fixed_mode = fixed_mode
         self.fixed_trump_suit = fixed_trump_suit
         self.manifest_sha256 = manifest_sha256
+        self.implementation_identity = policy_implementation_identity()
         self.search = PIMCSearchPolicy(
             seed=seed,
             config=search_config

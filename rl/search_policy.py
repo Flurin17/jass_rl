@@ -13,10 +13,12 @@ import hashlib
 import math
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
+from core.announcements.stock import STOCK_POINTS, is_stock_announcement
 from core.cards import ALL_CARDS, MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, SUITS, Card
 from core.legal_moves import RuleSet, legal_cards
 from core.rankings import beats, card_strength, winning_card
@@ -56,6 +58,39 @@ _VERARDO_BID_WEIGHTS = {
     "7": 0.5,
     "6": 0.5,
 }
+
+POLICY_IMPLEMENTATION_VERSION = 2
+_POLICY_IMPLEMENTATION_FILES = (
+    "core/announcements/stock.py",
+    "core/cards.py",
+    "core/legal_moves.py",
+    "core/rankings.py",
+    "core/ruleset.py",
+    "core/scoring.py",
+    "env/jass_aec_env.py",
+    "rl/baselines.py",
+    "rl/hybrid_policy.py",
+    "rl/search_policy.py",
+)
+
+
+def policy_implementation_identity() -> dict[str, object]:
+    """Return a stable digest of every source file that can change PIMC decisions."""
+
+    root = Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256()
+    for relative in _POLICY_IMPLEMENTATION_FILES:
+        path = root / relative
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return {
+        "name": "neural-guided-pimc",
+        "version": POLICY_IMPLEMENTATION_VERSION,
+        "sha256": digest.hexdigest(),
+        "files": list(_POLICY_IMPLEMENTATION_FILES),
+    }
 
 
 @dataclass(frozen=True)
@@ -138,6 +173,7 @@ class _Position:
     bid_pushed: bool
     contract_factor: int
     match_bonus: int
+    allow_stock: bool = False
 
 
 @dataclass
@@ -153,6 +189,11 @@ class _Simulation:
     trump_suit: str | None
     factor: int
     match_bonus: int
+    allow_stock: bool = False
+    stock_announced_by: set[int] = field(default_factory=set)
+    stock_played_by: list[list[Card]] = field(
+        default_factory=lambda: [[], [], [], []]
+    )
 
 
 class _AssignmentLimit(RuntimeError):
@@ -204,6 +245,8 @@ def _decode_bounded(value: float, scale: float, name: str) -> int:
 def _decode_position(
     vector: np.ndarray,
     legal_actions: tuple[int, ...],
+    *,
+    allow_stock: bool = False,
 ) -> _Position:
     mode_index = _one_hot_index(vector, OBS_MODE_OFFSET, 3, "game mode")
     mode = (MODE_TRUMP, MODE_OBEABE, MODE_UNEUFE)[mode_index]
@@ -323,6 +366,7 @@ def _decode_position(
         bid_pushed=bid_pushed,
         contract_factor=factor,
         match_bonus=match_bonus,
+        allow_stock=allow_stock,
     )
 
 
@@ -750,6 +794,22 @@ def _verardo_opponent_card(
 
 def _play(simulation: _Simulation, player: int, card: Card) -> None:
     simulation.hands[player].remove(card)
+    if (
+        simulation.allow_stock
+        and simulation.mode == MODE_TRUMP
+        and simulation.trump_suit is not None
+    ):
+        if (
+            player not in simulation.stock_announced_by
+            and is_stock_announcement(
+                simulation.stock_played_by[player],
+                card,
+                simulation.trump_suit,
+            )
+        ):
+            simulation.stock_announced_by.add(player)
+            simulation.future_points[player % 2] += STOCK_POINTS
+        simulation.stock_played_by[player].append(card)
     simulation.current_trick.append((player, card))
     if len(simulation.current_trick) < 4:
         return
@@ -797,6 +857,22 @@ def _evaluate_action(
     config: PIMCConfig,
     rng: random.Random,
 ) -> tuple[float, int]:
+    stock_announced_by: set[int] = set()
+    stock_played_by: list[list[Card]] = [[], [], [], []]
+    if position.allow_stock and position.mode == MODE_TRUMP:
+        assert position.trump_suit is not None
+        for trick in position.history:
+            for player, card in trick:
+                if (
+                    player not in stock_announced_by
+                    and is_stock_announcement(
+                        stock_played_by[player],
+                        card,
+                        position.trump_suit,
+                    )
+                ):
+                    stock_announced_by.add(player)
+                stock_played_by[player].append(card)
     simulation = _Simulation(
         hands=[list(hand) for hand in sampled_hands],
         current_trick=list(position.current_trick),
@@ -809,6 +885,9 @@ def _evaluate_action(
         trump_suit=position.trump_suit,
         factor=position.contract_factor,
         match_bonus=position.match_bonus,
+        allow_stock=position.allow_stock,
+        stock_announced_by=stock_announced_by,
+        stock_played_by=stock_played_by,
     )
     _play(simulation, 0, ALL_CARDS[action])
     plies = 1
@@ -902,7 +981,11 @@ class PIMCSearchPolicy:
             )
             return action
 
-        position = _decode_position(vector, legal)
+        position = _decode_position(
+            vector,
+            legal,
+            allow_stock=self.profile.allow_stock,
+        )
         worlds = min(
             self.config.determinizations,
             self.config.max_rollouts // len(card_actions),
@@ -1030,8 +1113,10 @@ def search_policy(
 
 
 __all__ = [
+    "POLICY_IMPLEMENTATION_VERSION",
     "PIMCConfig",
     "PIMCSearchPolicy",
     "SearchStats",
+    "policy_implementation_identity",
     "search_policy",
 ]

@@ -19,7 +19,7 @@ require CUDA or a hosted service.
 - Evaluation uses independently shuffled duplicate deals, team swaps, balanced
   starters, strict ties, Wilson intervals, per-contract metrics, and measured
   inference time.
-- All `236` tests and Ruff currently pass.  The PettingZoo API contract passes.
+- All `238` tests and Ruff currently pass.  The PettingZoo API contract passes.
 
 The latest qualification evidence for the neural-guided PIMC candidate is:
 

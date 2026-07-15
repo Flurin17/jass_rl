@@ -12,7 +12,11 @@ from rl.eval import EvalConfig, EvaluationContext, evaluate
 from rl.hybrid_policy import NeuralGuidanceConfig, NeuralGuidedPIMCPolicy
 from rl.reference_verardo import VERARDO_V1_PROFILE
 from rl.run_manifest import write_manifest
-from rl.search_policy import PIMCConfig, PIMCSearchPolicy
+from rl.search_policy import (
+    PIMCConfig,
+    PIMCSearchPolicy,
+    policy_implementation_identity,
+)
 
 FULL_OPPONENTS = ("random", "strategic")
 EXTERNAL_OPPONENTS = ("verardo-random", "verardo")
@@ -133,6 +137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         candidate = holder["candidate"]
         report["candidate_policy"] = {
             "type": "NeuralGuidedPIMCPolicy",
+            "implementation": policy_implementation_identity(),
             "public_information_only": True,
             "model_sha256": candidate.model_sha256,
             "search_config": asdict(search_config),

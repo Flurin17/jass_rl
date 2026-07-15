@@ -259,6 +259,18 @@ def test_manifest_reconstructs_exact_rules_and_rejects_schema_mismatch(
         )
 
 
+def test_manifest_accepts_fixed_trump_mode_with_randomized_suit() -> None:
+    environment = _environment(mode=MODE_TRUMP, trump_suit=None)
+
+    restored = EvaluationEnvironment.from_manifest(environment.to_manifest_dict())
+    tournament = restored.tournament_config(episodes=8, seed=3)
+
+    assert restored.mode == MODE_TRUMP
+    assert restored.trump_suit is None
+    assert tournament.modes == (MODE_TRUMP,)
+    assert tournament.trump_suits == tuple(eval_module.SUITS)
+
+
 def test_evaluate_accepts_a_public_candidate_builder(tmp_path: Path) -> None:
     model_path = tmp_path / "model_final.zip"
     model_path.write_bytes(b"hybrid-model")
