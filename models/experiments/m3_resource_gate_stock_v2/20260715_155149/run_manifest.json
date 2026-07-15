@@ -1,0 +1,248 @@
+{
+  "action_count": 45,
+  "actual_timesteps": 8192,
+  "checkpoint_sha256": {
+    "checkpoint_000000008192.zip": "81943df7b71a2433e616a84eb99db40affa9948f154731abb1f197eee940b751"
+  },
+  "checkpoints": [
+    "checkpoint_000000008192.zip"
+  ],
+  "created_at": "2026-07-15T15:51:50.007734+00:00",
+  "current_training_config": {
+    "allow_cross_profile_warm_start": false,
+    "allow_environment_fork": false,
+    "batch_size": 512,
+    "control_team": true,
+    "cpu_threads": 8,
+    "ctde": true,
+    "device": "cpu",
+    "enable_bidding": true,
+    "enable_stock": true,
+    "enable_weis": true,
+    "ent_coef": 0.002,
+    "fork_from": null,
+    "gae_lambda": 0.98,
+    "gamma": 1.0,
+    "initialize_from": null,
+    "iterations": 1,
+    "learning_rate": 5e-05,
+    "mode": null,
+    "n_envs": 8,
+    "n_epochs": 4,
+    "n_steps": 1024,
+    "net_arch": [
+      512,
+      256
+    ],
+    "normalize_contract_reward": true,
+    "opponent_mixture": [
+      [
+        "strategic",
+        0.8
+      ],
+      [
+        "random",
+        0.2
+      ]
+    ],
+    "opponent_pool_size": 8,
+    "profile_name": "standard",
+    "randomize_starter": true,
+    "resume": null,
+    "reward_scale": 0.004,
+    "save_dir": "models/experiments/m3_resource_gate_stock_v2",
+    "seed": 20260722,
+    "selfplay": false,
+    "selfplay_prob": 0.75,
+    "terminal_win_bonus": 0.5,
+    "total_steps": 8192,
+    "trump_only_bidding": false,
+    "trump_suit": null,
+    "vec_env": "dummy"
+  },
+  "environment": {
+    "actor_observation_shape": [
+      1603
+    ],
+    "baseline_opponent": "weighted-public-mixture-v1",
+    "control_team": true,
+    "ctde": true,
+    "enable_bidding": true,
+    "enable_stock": true,
+    "enable_weis": true,
+    "mode": null,
+    "normalize_contract_reward": true,
+    "opponent_mixture": [
+      {
+        "opponent": "strategic",
+        "weight": 0.8
+      },
+      {
+        "opponent": "random",
+        "weight": 0.2
+      }
+    ],
+    "opponent_mixture_scope": "direct",
+    "opponent_mixture_source": "configured",
+    "privileged_observation_schema": {
+      "name": "relative_remaining_hands_v1",
+      "version": 1
+    },
+    "profile": {
+      "allow_stock": true,
+      "allow_weis": true,
+      "contract_factors": {
+        "eicheln": 1,
+        "obeabe": 3,
+        "rosen": 1,
+        "schellen": 2,
+        "schilten": 2,
+        "uneufe": 4
+      },
+      "legal_moves": {
+        "allow_puur_withhold": true,
+        "allow_trump_on_non_trump_lead": true,
+        "must_follow_suit": true,
+        "must_overtrump": true,
+        "must_trump": false,
+        "must_trump_if_partner_winning": false
+      },
+      "match_bonus": 100,
+      "version": "schieber-pagat-v1"
+    },
+    "randomize_starter": true,
+    "reward_scale": 0.004,
+    "terminal_win_bonus": 0.5,
+    "training_observation_shape": [
+      1747
+    ],
+    "trump_only_bidding": false,
+    "trump_suit": null
+  },
+  "final_model": "model_final.zip",
+  "final_model_sha256": "81943df7b71a2433e616a84eb99db40affa9948f154731abb1f197eee940b751",
+  "final_model_stale": false,
+  "git": {
+    "branch": "codex/jass-ml-advisor",
+    "commit": "dd587ab4a23042cbf5f7b76ef7a48af1c83625aa",
+    "dirty": false,
+    "hashed_untracked_bytes": 0,
+    "hashed_untracked_files": [],
+    "skipped_untracked_files": [],
+    "status": [],
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "working_tree_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "last_chunk_seed": 1648590090,
+  "latest_checkpoint": "checkpoint_000000008192.zip",
+  "manifest_version": 1,
+  "observation_schema_version": 2,
+  "observation_shape": [
+    1747
+  ],
+  "planned_total_timesteps": 8192,
+  "requested_total_timesteps": 8192,
+  "resource_usage": {
+    "invocations": 1,
+    "latest_cpu_threads": 8,
+    "latest_device": "cpu",
+    "learning_seconds": 2.6196660830028122,
+    "peak_rss_bytes": 471007232,
+    "steps_per_learning_second": 3127.1161058091257,
+    "trained_timesteps": 8192,
+    "workflow_seconds": 3.5217519999969227
+  },
+  "resource_usage_events": [
+    {
+      "cpu_threads": 8,
+      "device": "cpu",
+      "end_timesteps": 8192,
+      "learning_seconds": 2.6196660830028122,
+      "peak_rss_bytes": 471007232,
+      "start_timesteps": 0,
+      "started_at": "2026-07-15T15:51:49.287795+00:00",
+      "status": "trained",
+      "steps_per_learning_second": 3127.1161058091257,
+      "trained_timesteps_this_invocation": 8192,
+      "updated_at": "2026-07-15T15:51:52.809553+00:00",
+      "workflow_seconds": 3.5217519999969227
+    }
+  ],
+  "resume_events": [],
+  "resumed_from": null,
+  "rollout_size": 8192,
+  "runtime": {
+    "accelerator": {
+      "mps_available": true,
+      "mps_built": true
+    },
+    "logical_cpu_count": 12,
+    "machine": "arm64",
+    "packages": {
+      "gymnasium": "1.3.0",
+      "jass-rl": "0.2.0",
+      "numpy": "2.5.1",
+      "pettingzoo": "1.26.1",
+      "sb3-contrib": "2.9.0",
+      "stable-baselines3": "2.9.0",
+      "torch": "2.13.0"
+    },
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.12.8 (main, Jan 14 2025, 23:36:58) [Clang 19.1.6 ]"
+  },
+  "status": "trained",
+  "training_config": {
+    "allow_cross_profile_warm_start": false,
+    "allow_environment_fork": false,
+    "batch_size": 512,
+    "control_team": true,
+    "cpu_threads": 8,
+    "ctde": true,
+    "device": "cpu",
+    "enable_bidding": true,
+    "enable_stock": true,
+    "enable_weis": true,
+    "ent_coef": 0.002,
+    "fork_from": null,
+    "gae_lambda": 0.98,
+    "gamma": 1.0,
+    "initialize_from": null,
+    "iterations": 1,
+    "learning_rate": 5e-05,
+    "mode": null,
+    "n_envs": 8,
+    "n_epochs": 4,
+    "n_steps": 1024,
+    "net_arch": [
+      512,
+      256
+    ],
+    "normalize_contract_reward": true,
+    "opponent_mixture": [
+      [
+        "strategic",
+        0.8
+      ],
+      [
+        "random",
+        0.2
+      ]
+    ],
+    "opponent_pool_size": 8,
+    "profile_name": "standard",
+    "randomize_starter": true,
+    "resume": null,
+    "reward_scale": 0.004,
+    "save_dir": "models/experiments/m3_resource_gate_stock_v2",
+    "seed": 20260722,
+    "selfplay": false,
+    "selfplay_prob": 0.75,
+    "terminal_win_bonus": 0.5,
+    "total_steps": 8192,
+    "trump_only_bidding": false,
+    "trump_suit": null,
+    "vec_env": "dummy"
+  },
+  "warm_start": null
+}

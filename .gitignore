@@ -29,6 +29,27 @@ replays/
 *.json
 !examples/*.json
 
+# Keep compact, auditable qualification evidence in Git. Model archives and
+# intermediate training directories remain ignored.
+!models/
+models/*
+!models/README.md
+!models/experiments/
+models/experiments/*
+!models/experiments/formal_external_*_shard_*_1000.json
+!models/experiments/formal_full_*_stock_v2_shard_*_1000.json
+!models/experiments/formal_final_*_merged.json
+!models/experiments/m3_resource_gate_stock_v2/
+models/experiments/m3_resource_gate_stock_v2/*
+!models/experiments/m3_resource_gate_stock_v2/20260715_155149/
+models/experiments/m3_resource_gate_stock_v2/20260715_155149/*
+!models/experiments/m3_resource_gate_stock_v2/20260715_155149/run_manifest.json
+!models/experiments/ppo_full_consolidation_v1/
+models/experiments/ppo_full_consolidation_v1/*
+!models/experiments/ppo_full_consolidation_v1/20260715_095439/
+models/experiments/ppo_full_consolidation_v1/20260715_095439/*
+!models/experiments/ppo_full_consolidation_v1/20260715_095439/run_manifest.json
+
 # Coverage
 .coverage
 htmlcov/

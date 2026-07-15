@@ -5,6 +5,10 @@ and showing one card recommendation. Their numbers come directly from the same
 verified reports used by the advisor. Generate the example decision first, then
 render the two PNGs and animated GIF:
 
+This requires the local qualified archive documented in
+[`models/README.md`](../../../models/README.md); a fresh clone contains the
+evidence JSON but not that binary model.
+
 ```bash
 .venv/bin/python -m rl.advisor \
   models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \

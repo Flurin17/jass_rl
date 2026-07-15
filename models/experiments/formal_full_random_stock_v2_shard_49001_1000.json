@@ -1,0 +1,619 @@
+{
+  "candidate_policy": {
+    "guidance_config": {
+      "max_search_gap_raw_points": 3.0,
+      "min_neural_probability": 0.5,
+      "use_neural_bidding": false
+    },
+    "implementation": {
+      "files": [
+        "core/announcements/stock.py",
+        "core/cards.py",
+        "core/legal_moves.py",
+        "core/rankings.py",
+        "core/ruleset.py",
+        "core/scoring.py",
+        "env/jass_aec_env.py",
+        "rl/baselines.py",
+        "rl/hybrid_policy.py",
+        "rl/search_policy.py"
+      ],
+      "name": "neural-guided-pimc",
+      "sha256": "d99631fb1b71693cd1dea729ae7ba413ba09865bd286e3017d260ce4183cb160",
+      "version": 2
+    },
+    "last_decision": {
+      "neural_action": null,
+      "neural_probability": null,
+      "overridden": false,
+      "reason": "search-only non-card or forced decision",
+      "search_action": 30,
+      "search_gap_raw_points": null,
+      "selected_action": 30
+    },
+    "model_sha256": "513e96d900144a3e1ccc80f748561538ce2430a0068795716d16061dfd9accfa",
+    "public_information_only": true,
+    "search_config": {
+      "assignment_node_limit": 8000,
+      "common_random_numbers": true,
+      "determinizations": 24,
+      "infer_opponent_bids": false,
+      "max_rollout_plies": 36,
+      "max_rollouts": 216,
+      "opponent_rollout_policy": "generic",
+      "prune_bid_constraints": false,
+      "rollout_randomness": 0.04,
+      "terminal_win_bonus": 0.0,
+      "time_budget_ms": null
+    },
+    "search_profile": {
+      "allow_stock": true,
+      "allow_weis": true,
+      "contract_factors": {
+        "eicheln": 1,
+        "obeabe": 3,
+        "rosen": 1,
+        "schellen": 2,
+        "schilten": 2,
+        "uneufe": 4
+      },
+      "legal_moves": {
+        "allow_puur_withhold": true,
+        "allow_trump_on_non_trump_lead": true,
+        "must_follow_suit": true,
+        "must_overtrump": true,
+        "must_trump": false,
+        "must_trump_if_partner_winning": false
+      },
+      "match_bonus": 100,
+      "version": "schieber-pagat-v1"
+    },
+    "stats": {
+      "agreements": 4551,
+      "assignment_nodes": 5437056,
+      "attempted_determinizations": 331752,
+      "bidding_decisions": 0,
+      "card_decisions": 13823,
+      "confidence_eligible": 8850,
+      "decisions": 20611,
+      "disagreements": 9272,
+      "gap_eligible": 1915,
+      "neural_bids": 0,
+      "nonfinite_search_gaps": 0,
+      "overrides": 1852,
+      "search_fallbacks": 2611,
+      "search_rollouts": 1373760,
+      "simulated_plies": 32386824,
+      "successful_determinizations": 331752
+    },
+    "type": "NeuralGuidedPIMCPolicy"
+  },
+  "compatibility": {
+    "action_count": 45,
+    "actor_observation_shape": [
+      1603
+    ],
+    "actor_privacy_validated": true,
+    "artifact_hash_validated": true,
+    "device": "cpu",
+    "legacy_override": false,
+    "legacy_reason": null,
+    "manifest_required": true,
+    "manifest_validated": true,
+    "model_observation_shape": [
+      1747
+    ],
+    "observation_schema_version": 2
+  },
+  "evaluation": {
+    "full_project_environment_eligible": true,
+    "games_per_opponent": 1000,
+    "manifest_environment": {
+      "actor_observation_shape": [
+        1603
+      ],
+      "control_team": true,
+      "ctde": true,
+      "enable_bidding": true,
+      "enable_stock": true,
+      "enable_weis": true,
+      "mode": null,
+      "privileged_observation_schema": {
+        "name": "relative_remaining_hands_v1",
+        "version": 1
+      },
+      "profile": {
+        "allow_stock": true,
+        "allow_weis": true,
+        "contract_factors": {
+          "eicheln": 1,
+          "obeabe": 3,
+          "rosen": 1,
+          "schellen": 2,
+          "schilten": 2,
+          "uneufe": 4
+        },
+        "legal_moves": {
+          "allow_puur_withhold": true,
+          "allow_trump_on_non_trump_lead": true,
+          "must_follow_suit": true,
+          "must_overtrump": true,
+          "must_trump": false,
+          "must_trump_if_partner_winning": false
+        },
+        "match_bonus": 100,
+        "version": "schieber-pagat-v1"
+      },
+      "randomize_starter": true,
+      "reward_scale": 0.004,
+      "terminal_win_bonus": 0.5,
+      "training_observation_shape": [
+        1747
+      ],
+      "trump_only_bidding": false,
+      "trump_suit": null
+    },
+    "opponents": [
+      "random"
+    ],
+    "paired_same_deal": true,
+    "seed": 49001,
+    "starters": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "team_swap": true
+  },
+  "evaluation_provenance": {
+    "git": {
+      "branch": "codex/jass-ml-advisor",
+      "commit": "ec2b11ef339d3d6b31081c6c566e63bc69ea384d",
+      "dirty": false,
+      "hashed_untracked_bytes": 0,
+      "hashed_untracked_files": [],
+      "skipped_untracked_files": [],
+      "status": [],
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "working_tree_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime": {
+      "accelerator": {
+        "mps_available": true,
+        "mps_built": true
+      },
+      "logical_cpu_count": 12,
+      "machine": "arm64",
+      "packages": {
+        "gymnasium": "1.3.0",
+        "jass-rl": "0.2.0",
+        "numpy": "2.5.1",
+        "pettingzoo": "1.26.1",
+        "sb3-contrib": "2.9.0",
+        "stable-baselines3": "2.9.0",
+        "torch": "2.13.0"
+      },
+      "platform": "macOS-26.5.2-arm64-arm-64bit",
+      "processor": "arm",
+      "python": "3.12.8 (main, Jan 14 2025, 23:36:58) [Clang 19.1.6 ]"
+    }
+  },
+  "generated_at": "2026-07-15T16:24:50.240700+00:00",
+  "model": {
+    "filename": "model_final.zip",
+    "num_timesteps": 3006464,
+    "path": "/Users/taalafl6/Documents/privat_programmmieren/jass_rl/models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip",
+    "sha256": "513e96d900144a3e1ccc80f748561538ce2430a0068795716d16061dfd9accfa",
+    "size_bytes": 24016834
+  },
+  "opponents": {
+    "random": {
+      "environment": {
+        "enable_bidding": true,
+        "enable_stock": true,
+        "enable_weis": true,
+        "modes": [
+          null
+        ],
+        "profile": {
+          "allow_stock": true,
+          "allow_weis": true,
+          "contract_factors": {
+            "eicheln": 1,
+            "obeabe": 3,
+            "rosen": 1,
+            "schellen": 2,
+            "schilten": 2,
+            "uneufe": 4
+          },
+          "legal_moves": {
+            "allow_puur_withhold": true,
+            "allow_trump_on_non_trump_lead": true,
+            "must_follow_suit": true,
+            "must_overtrump": true,
+            "must_trump": false,
+            "must_trump_if_partner_winning": false
+          },
+          "match_bonus": 100,
+          "version": "schieber-pagat-v1"
+        },
+        "starters": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "swap_teams": true,
+        "trump_only_bidding": false,
+        "trump_suits": [
+          "schellen",
+          "rosen",
+          "schilten",
+          "eicheln"
+        ]
+      },
+      "metrics": {
+        "by_contract": {
+          "obeabe": {
+            "average_candidate_points": 418.651376146789,
+            "average_point_difference": 265.1559633027523,
+            "average_reference_points": 153.4954128440367,
+            "candidate_decisions": 4534,
+            "candidate_inference_seconds": 82.32591388989022,
+            "candidate_matches": 16,
+            "episodes": 218,
+            "losses": 28,
+            "match_rate": 0.07339449541284404,
+            "mean_candidate_inference_ms": 18.15745784955673,
+            "paired_losses": 0,
+            "paired_ties": 1,
+            "paired_win_rate": 0.96,
+            "paired_win_rate_ci95": {
+              "high": 0.9929037664980127,
+              "low": 0.8045593626380625
+            },
+            "paired_wins": 24,
+            "pairs": 25,
+            "reference_matches": 0,
+            "score_rate": 0.8715596330275229,
+            "ties": 0,
+            "win_rate": 0.8715596330275229,
+            "win_rate_ci95": {
+              "high": 0.9096209607548472,
+              "low": 0.8206302774996682
+            },
+            "wins": 190
+          },
+          "trump:eicheln": {
+            "average_candidate_points": 137.11888111888112,
+            "average_point_difference": 79.75524475524476,
+            "average_reference_points": 57.36363636363637,
+            "candidate_decisions": 2923,
+            "candidate_inference_seconds": 69.67902386901915,
+            "candidate_matches": 9,
+            "episodes": 143,
+            "losses": 23,
+            "match_rate": 0.06293706293706294,
+            "mean_candidate_inference_ms": 23.838188118035973,
+            "paired_losses": 1,
+            "paired_ties": 0,
+            "paired_win_rate": 0.9,
+            "paired_win_rate_ci95": {
+              "high": 0.9821237869049271,
+              "low": 0.5958499732047615
+            },
+            "paired_wins": 9,
+            "pairs": 10,
+            "reference_matches": 0,
+            "score_rate": 0.8391608391608392,
+            "ties": 0,
+            "win_rate": 0.8391608391608392,
+            "win_rate_ci95": {
+              "high": 0.8903682755000376,
+              "low": 0.7702081092554777
+            },
+            "wins": 120
+          },
+          "trump:rosen": {
+            "average_candidate_points": 136.92,
+            "average_point_difference": 83.16,
+            "average_reference_points": 53.76,
+            "candidate_decisions": 2563,
+            "candidate_inference_seconds": 60.883030901211896,
+            "candidate_matches": 6,
+            "episodes": 125,
+            "losses": 19,
+            "match_rate": 0.048,
+            "mean_candidate_inference_ms": 23.754596527979672,
+            "paired_losses": 0,
+            "paired_ties": 0,
+            "paired_win_rate": 1.0,
+            "paired_win_rate_ci95": {
+              "high": 1.0,
+              "low": 0.6096657120978346
+            },
+            "paired_wins": 6,
+            "pairs": 6,
+            "reference_matches": 0,
+            "score_rate": 0.848,
+            "ties": 0,
+            "win_rate": 0.848,
+            "win_rate_ci95": {
+              "high": 0.9004791657956704,
+              "low": 0.7747693201833344
+            },
+            "wins": 106
+          },
+          "trump:schellen": {
+            "average_candidate_points": 280.3757575757576,
+            "average_point_difference": 170.87272727272727,
+            "average_reference_points": 109.5030303030303,
+            "candidate_decisions": 3384,
+            "candidate_inference_seconds": 80.30835982505232,
+            "candidate_matches": 8,
+            "episodes": 165,
+            "losses": 26,
+            "match_rate": 0.048484848484848485,
+            "mean_candidate_inference_ms": 23.731784818277873,
+            "paired_losses": 0,
+            "paired_ties": 0,
+            "paired_win_rate": 1.0,
+            "paired_win_rate_ci95": {
+              "high": 1.0,
+              "low": 0.8156818649911483
+            },
+            "paired_wins": 17,
+            "pairs": 17,
+            "reference_matches": 0,
+            "score_rate": 0.8424242424242424,
+            "ties": 0,
+            "win_rate": 0.8424242424242424,
+            "win_rate_ci95": {
+              "high": 0.8901393771166339,
+              "low": 0.7791275244445726
+            },
+            "wins": 139
+          },
+          "trump:schilten": {
+            "average_candidate_points": 280.3809523809524,
+            "average_point_difference": 170.16326530612244,
+            "average_reference_points": 110.21768707482993,
+            "candidate_decisions": 3012,
+            "candidate_inference_seconds": 72.86064800392342,
+            "candidate_matches": 8,
+            "episodes": 147,
+            "losses": 26,
+            "match_rate": 0.05442176870748299,
+            "mean_candidate_inference_ms": 24.190122179257443,
+            "paired_losses": 0,
+            "paired_ties": 0,
+            "paired_win_rate": 1.0,
+            "paired_win_rate_ci95": {
+              "high": 1.0,
+              "low": 0.7411670330319684
+            },
+            "paired_wins": 11,
+            "pairs": 11,
+            "reference_matches": 0,
+            "score_rate": 0.8231292517006803,
+            "ties": 0,
+            "win_rate": 0.8231292517006803,
+            "win_rate_ci95": {
+              "high": 0.876344239627784,
+              "low": 0.7534560867727113
+            },
+            "wins": 121
+          },
+          "uneufe": {
+            "average_candidate_points": 555.1485148514852,
+            "average_point_difference": 366.45544554455444,
+            "average_reference_points": 188.69306930693068,
+            "candidate_decisions": 4195,
+            "candidate_inference_seconds": 76.59903788293377,
+            "candidate_matches": 14,
+            "episodes": 202,
+            "losses": 21,
+            "match_rate": 0.06930693069306931,
+            "mean_candidate_inference_ms": 18.25960378615823,
+            "paired_losses": 0,
+            "paired_ties": 0,
+            "paired_win_rate": 1.0,
+            "paired_win_rate_ci95": {
+              "high": 1.0,
+              "low": 0.8568833815495731
+            },
+            "paired_wins": 23,
+            "pairs": 23,
+            "reference_matches": 1,
+            "score_rate": 0.8960396039603961,
+            "ties": 0,
+            "win_rate": 0.8960396039603961,
+            "win_rate_ci95": {
+              "high": 0.9309931831996778,
+              "low": 0.8463040673963451
+            },
+            "wins": 181
+          }
+        },
+        "by_mode": {
+          "obeabe": {
+            "average_candidate_points": 418.651376146789,
+            "average_point_difference": 265.1559633027523,
+            "average_reference_points": 153.4954128440367,
+            "candidate_decisions": 4534,
+            "candidate_inference_seconds": 82.32591388989022,
+            "candidate_matches": 16,
+            "episodes": 218,
+            "losses": 28,
+            "match_rate": 0.07339449541284404,
+            "mean_candidate_inference_ms": 18.15745784955673,
+            "paired_losses": 0,
+            "paired_ties": 1,
+            "paired_win_rate": 0.96,
+            "paired_win_rate_ci95": {
+              "high": 0.9929037664980127,
+              "low": 0.8045593626380625
+            },
+            "paired_wins": 24,
+            "pairs": 25,
+            "reference_matches": 0,
+            "score_rate": 0.8715596330275229,
+            "ties": 0,
+            "win_rate": 0.8715596330275229,
+            "win_rate_ci95": {
+              "high": 0.9096209607548472,
+              "low": 0.8206302774996682
+            },
+            "wins": 190
+          },
+          "trump": {
+            "average_candidate_points": 214.1396551724138,
+            "average_point_difference": 129.32413793103447,
+            "average_reference_points": 84.81551724137931,
+            "candidate_decisions": 11882,
+            "candidate_inference_seconds": 283.7310625992068,
+            "candidate_matches": 31,
+            "episodes": 580,
+            "losses": 94,
+            "match_rate": 0.05344827586206897,
+            "mean_candidate_inference_ms": 23.87906603258768,
+            "paired_losses": 4,
+            "paired_ties": 0,
+            "paired_win_rate": 0.9754601226993865,
+            "paired_win_rate_ci95": {
+              "high": 0.9904164783090874,
+              "low": 0.9386092032907107
+            },
+            "paired_wins": 159,
+            "pairs": 163,
+            "reference_matches": 0,
+            "score_rate": 0.8379310344827586,
+            "ties": 0,
+            "win_rate": 0.8379310344827586,
+            "win_rate_ci95": {
+              "high": 0.8656821350773619,
+              "low": 0.8057330138087823
+            },
+            "wins": 486
+          },
+          "uneufe": {
+            "average_candidate_points": 555.1485148514852,
+            "average_point_difference": 366.45544554455444,
+            "average_reference_points": 188.69306930693068,
+            "candidate_decisions": 4195,
+            "candidate_inference_seconds": 76.59903788293377,
+            "candidate_matches": 14,
+            "episodes": 202,
+            "losses": 21,
+            "match_rate": 0.06930693069306931,
+            "mean_candidate_inference_ms": 18.25960378615823,
+            "paired_losses": 0,
+            "paired_ties": 0,
+            "paired_win_rate": 1.0,
+            "paired_win_rate_ci95": {
+              "high": 1.0,
+              "low": 0.8568833815495731
+            },
+            "paired_wins": 23,
+            "pairs": 23,
+            "reference_matches": 1,
+            "score_rate": 0.8960396039603961,
+            "ties": 0,
+            "win_rate": 0.8960396039603961,
+            "win_rate_ci95": {
+              "high": 0.9309931831996778,
+              "low": 0.8463040673963451
+            },
+            "wins": 181
+          }
+        },
+        "overall": {
+          "average_candidate_points": 327.607,
+          "average_point_difference": 206.836,
+          "average_reference_points": 120.771,
+          "candidate_decisions": 20611,
+          "candidate_inference_seconds": 442.65601437203077,
+          "candidate_matches": 61,
+          "episodes": 1000,
+          "losses": 143,
+          "match_rate": 0.061,
+          "mean_candidate_inference_ms": 21.47668790316,
+          "paired_losses": 15,
+          "paired_ties": 1,
+          "paired_win_rate": 0.968,
+          "paired_win_rate_ci95": {
+            "high": 0.9802084863734289,
+            "low": 0.9486551309545582
+          },
+          "paired_wins": 484,
+          "pairs": 500,
+          "reference_matches": 1,
+          "score_rate": 0.857,
+          "ties": 0,
+          "win_rate": 0.857,
+          "win_rate_ci95": {
+            "high": 0.8773326825022975,
+            "low": 0.8339350119390162
+          },
+          "wins": 857
+        },
+        "team_swap_method": "direct AEC callback assignment",
+        "team_swap_supported": true
+      },
+      "protocol": "manifest-exact",
+      "qualification": {
+        "checks": {
+          "complete_pairing": true,
+          "manifest_provenance": true,
+          "minimum_average_point_difference": true,
+          "minimum_games": false,
+          "minimum_paired_wilson_low": true,
+          "minimum_paired_win_rate": true,
+          "minimum_pairs": false,
+          "minimum_wilson_low": true,
+          "minimum_win_rate": true,
+          "protocol_environment": true
+        },
+        "performance_qualified": false,
+        "qualified": false,
+        "thresholds": {
+          "minimum_average_point_difference": null,
+          "minimum_games": 4000,
+          "minimum_paired_wilson_low": 0.5,
+          "minimum_paired_win_rate": 0.6,
+          "minimum_pairs": 2000,
+          "minimum_wilson_low": 0.5,
+          "minimum_win_rate": 0.6
+        }
+      },
+      "samples": {
+        "complete_pairs": 500,
+        "games": 1000,
+        "starter_rotations": 125
+      }
+    }
+  },
+  "qualification": {
+    "all_requested": false,
+    "full_project": null,
+    "verardo_project": null,
+    "verardo_random": null,
+    "verardo_reference": null
+  },
+  "report_path": "/Users/taalafl6/Documents/privat_programmmieren/jass_rl/models/experiments/formal_full_random_stock_v2_shard_49001_1000.json",
+  "report_version": 2,
+  "run": {
+    "actual_timesteps": 3006464,
+    "created_at": "2026-07-15T09:54:40.760230+00:00",
+    "directory": "/Users/taalafl6/Documents/privat_programmmieren/jass_rl/models/experiments/ppo_full_consolidation_v1/20260715_095439",
+    "git_commit": "b4d3915c2c538084b6d11a3b75703b136b98f7fa",
+    "manifest_path": "/Users/taalafl6/Documents/privat_programmmieren/jass_rl/models/experiments/ppo_full_consolidation_v1/20260715_095439/run_manifest.json",
+    "manifest_sha256": "b86704d89260df8ae1826f9dc9ddb84753e2bf04a928270285ef896edd28e63c",
+    "manifest_version": 1,
+    "profile_version": "schieber-pagat-v1",
+    "run_id": "20260715_095439",
+    "status": "trained",
+    "tracked_diff_sha256": "662b0380bb6994789c6ffe7ed771f2770ed70431eadd5e9eeedaa5221e454680"
+  }
+}

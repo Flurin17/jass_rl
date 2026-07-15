@@ -56,6 +56,51 @@ def _run_git(repo_root: Path, *args: str) -> str | None:
     return result.stdout.strip()
 
 
+def _sysctl_value(name: str) -> str | None:
+    """Read one non-sensitive macOS hardware fact when sysctl is available."""
+
+    try:
+        result = subprocess.run(
+            ["sysctl", "-n", name],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def hardware_metadata() -> dict[str, Any]:
+    """Return portable hardware identity without serial or device identifiers."""
+
+    model_identifier = None
+    chip = platform.processor() or None
+    physical_memory_bytes = None
+    if platform.system() == "Darwin":
+        model_identifier = _sysctl_value("hw.model")
+        chip = _sysctl_value("machdep.cpu.brand_string") or chip
+        raw_memory = _sysctl_value("hw.memsize")
+        if raw_memory is not None:
+            try:
+                physical_memory_bytes = int(raw_memory)
+            except ValueError:
+                physical_memory_bytes = None
+    elif hasattr(os, "sysconf"):
+        try:
+            physical_memory_bytes = int(os.sysconf("SC_PAGE_SIZE")) * int(
+                os.sysconf("SC_PHYS_PAGES")
+            )
+        except (OSError, TypeError, ValueError):
+            physical_memory_bytes = None
+    return {
+        "model_identifier": model_identifier,
+        "chip": chip,
+        "physical_memory_bytes": physical_memory_bytes,
+    }
+
+
 def git_metadata(repo_root: Path) -> dict[str, Any]:
     status = _run_git(repo_root, "status", "--porcelain=v1")
     diff = _run_git(repo_root, "diff", "--binary", "HEAD")
@@ -129,6 +174,7 @@ def runtime_metadata() -> dict[str, Any]:
         "machine": platform.machine(),
         "processor": platform.processor(),
         "logical_cpu_count": os.cpu_count(),
+        "hardware": hardware_metadata(),
         "accelerator": accelerator,
         "packages": packages,
     }

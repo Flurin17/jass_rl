@@ -19,20 +19,23 @@ require CUDA or a hosted service.
 - Evaluation uses independently shuffled duplicate deals, team swaps, balanced
   starters, strict ties, Wilson intervals, per-contract metrics, and measured
   inference time.
-- All `238` tests and Ruff currently pass.  The PettingZoo API contract passes.
+- All `247` tests and Ruff currently pass.  The PettingZoo API contract passes.
 
 The latest qualification evidence for the neural-guided PIMC candidate is:
 
 | Track | Opponent | Games | Raw wins | Paired wins | Mean difference | Status |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| Full Schieber | random | 4,000 | 86.60% | 96.15% | +211.59 | qualified |
-| Full Schieber | strategic | 4,000 | 63.25% | 81.00% | +69.54 | qualified |
+| Full Schieber, Stock-aware v2 | random | 4,000 | 85.80% | 96.30% | +209.89625 | qualified |
+| Full Schieber, Stock-aware v2 | strategic | 4,000 | 62.95% | 81.10% | +71.444 | qualified |
 | `verardo-v1` | clean-room reference | 4,000 | 70.05% | 89.10% | +39.19 | qualified |
 | `verardo-v1` | random | 4,000 | 87.88% | 97.75% | +77.81 | qualified |
 
 Every formal gate uses 4,000 games and 2,000 independent pairs.  All four gates
-pass.  The full and `verardo-v1` rows use different manifest-backed models and
-are never presented as evidence for one another.  See
+pass.  Each canonical full-profile result is a strict merge of four disjoint
+1,000-game shards and is bound to Stock-aware policy implementation
+`d99631fb1b71693cd1dea729ae7ba413ba09865bd286e3017d260ce4183cb160`.
+The full and `verardo-v1` rows use different manifest-backed models and policy
+settings and are never presented as evidence for one another.  See
 [`docs/benchmark_goal.md`](docs/benchmark_goal.md) for the gate definitions and
 the exact comparison caveat.
 
@@ -60,7 +63,12 @@ Swiss suit names are used throughout: `schellen`, `rosen`, `schilten`, and
 
 ## Train locally
 
-The measured M3 benchmark favors CPU for this masked network workload.  A basic
+The measured M3 benchmarks favor CPU for this masked network workload.  A clean
+production-architecture resource validation processed 8,192 transitions at
+3,127.116 learning steps/s using eight CPU threads, with 471,007,232 bytes peak
+RSS.  This validates the current resource envelope; the historical manifest did
+not record thread count and likely used PyTorch's then-observed six-thread host
+default.  A basic new
 full-profile run is:
 
 ```bash
@@ -73,10 +81,11 @@ MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
   --normalize-contract-reward --device cpu --seed 0
 ```
 
-Models are stored below `models/<run>/<timestamp>/`.  Use `--resume` for an
-interrupted compatible run and `--fork-from --allow-environment-fork` for an
-explicit curriculum transition.  Exact M3 settings, measured memory, the
-audited continuation command, and qualification commands are in
+The default output is `models/<timestamp>/`; a named `--save-dir` can add a run
+directory.  Use `--resume` for an interrupted compatible run.  Use `--fork-from`
+together with `--allow-environment-fork` for an explicit curriculum transition.
+Exact M3 settings, measured memory, the audited continuation command, and
+qualification commands are in
 [`docs/training_m3.md`](docs/training_m3.md).
 
 ## Evaluate
@@ -119,14 +128,18 @@ exact model and policy configuration:
 ```bash
 .venv/bin/python -m rl.advisor_web \
   models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \
-  --report models/experiments/formal_final_full_random_4000_seed49001.json \
-  --report models/experiments/formal_final_full_strategic_4000_seed49001.json
+  --report models/experiments/formal_final_full_random_stock_v2_4000_merged.json \
+  --report models/experiments/formal_final_full_strategic_stock_v2_4000_merged.json
 ```
 
 Open `http://127.0.0.1:8765/`.  Reports with a different checkpoint, rules
 profile, search configuration, or neural-guidance configuration are rejected at
 startup.  State format, relative-seat conventions, and real-table usage are in
 [`docs/advisor.md`](docs/advisor.md).
+
+Qualification JSON and run manifests are tracked.  The 24 MB qualified model
+archive remains a separate local artifact; see [`models/README.md`](models/README.md)
+before expecting this exact command to work in a fresh clone.
 
 ## External comparison
 
@@ -149,3 +162,5 @@ be added if the original checkpoint becomes available.
 - `cli/`: interactive play and deterministic replay.
 - `tests/`: deterministic unit, property, privacy, protocol, and API tests.
 - `docs/`: rules, benchmark contract, and M3 workflow.
+- `docs/assets/linkedin/`: reproducible social-asset command and an honest
+  publication caption.

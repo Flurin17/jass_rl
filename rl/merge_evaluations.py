@@ -158,6 +158,16 @@ def merge_reports(
         candidate = report.get("candidate_policy")
         if not isinstance(candidate, Mapping):
             raise ValueError("every shard must describe candidate_policy")
+        evaluation_provenance = report.get("evaluation_provenance")
+        evaluation_git = (
+            evaluation_provenance.get("git")
+            if isinstance(evaluation_provenance, Mapping)
+            else None
+        )
+        if not isinstance(evaluation_git, Mapping) or evaluation_git.get("dirty") is not False:
+            raise ValueError(
+                "every shard evaluation_provenance.git.dirty must be exactly false"
+            )
         payload = report["opponents"][opponent]
         checks = payload["qualification"]["checks"]
         if not checks.get("manifest_provenance") or not checks.get("protocol_environment"):
@@ -167,7 +177,7 @@ def merge_reports(
                 "model": report["model"],
                 "run": report["run"],
                 "compatibility": report["compatibility"],
-                "evaluation_provenance": report["evaluation_provenance"],
+                "evaluation_provenance": evaluation_provenance,
                 "candidate": _candidate_identity(candidate),
                 "environment": payload["environment"],
                 "protocol": payload["protocol"],

@@ -82,11 +82,15 @@ ties count as failures as defined above.
 
 ## Local resource gate
 
-Training and evaluation must run on the target Apple M3 Pro with 36 GB RAM.  A
-qualification run must record throughput, wall-clock time, peak memory, device,
-seed, code/rules/observation versions, and checkpoints.  It must be resumable
-after interruption.  Peak resident memory should remain below 28 GB so the
-machine stays usable; no result that depends on unavailable CUDA hardware counts.
+Training and evaluation must run on the target Apple M3 Pro with 36 GB RAM.
+Resource evidence must exercise the production network architecture and full
+standard environment while recording throughput, wall-clock time, peak memory,
+device, thread count, seed, code/rules/observation versions, and checkpoints.
+The training workflow must be resumable after interruption.  Peak resident
+memory should remain below 28 GB so the machine stays usable; no result that
+depends on unavailable CUDA hardware counts.  A short resource-validation run
+can establish the machine envelope, but it is not evidence of model quality and
+cannot replace the formal game gates.
 
 ## No-shortcut rule
 
@@ -97,14 +101,23 @@ a saved model clears both the full-project and matched external gates.
 
 ## Achieved qualification
 
-The final clean reports were generated from commit `00bab39` with no working-
-tree changes.  Each row contains 4,000 games and 2,000 independently shuffled,
-team-swapped pairs:
+The canonical full-profile reports are the Stock-aware v2 reports.  They were
+evaluated from a clean tree at commit `ec2b11e` and bind the search/rules code to
+policy implementation SHA-256
+`d99631fb1b71693cd1dea729ae7ba413ba09865bd286e3017d260ce4183cb160`.
+Each is a strict merge of four disjoint 1,000-game shards, with 500 independently
+shuffled, team-swapped pairs per shard.  The merger verified identical model,
+policy implementation, configuration, environment, and clean provenance, and
+rejected overlapping deal-seed ranges.
+
+The external matched-profile reports remain the clean four-shard reports from
+commit `00bab39`; Stock is disabled in `verardo-v1`.  Every row below contains
+4,000 games and 2,000 pairs:
 
 | Profile/model | Opponent | Game wins | Game Wilson low | Pair wins | Pair Wilson low | Mean difference |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| Full standard (`513e96d90014…`) | random | 86.60% | 85.51% | 96.15% | 95.21% | +211.59 |
-| Full standard (`513e96d90014…`) | strategic | 63.25% | 61.74% | 81.00% | 79.22% | +69.54 |
+| Full standard, Stock-aware v2 (`513e96d90014…`) | random | 85.80% | 84.68% | 96.30% | 95.38% | +209.89625 |
+| Full standard, Stock-aware v2 (`513e96d90014…`) | strategic | 62.95% | 61.44% | 81.10% | 79.33% | +71.444 |
 | `verardo-v1` (`7e1334b6d922…`) | random | 87.88% | 86.83% | 97.75% | 97.00% | +77.81 |
 | `verardo-v1` (`7e1334b6d922…`) | clean-room reference | 70.05% | 68.61% | 89.10% | 87.66% | +39.19 |
 
@@ -112,6 +125,20 @@ All raw, paired, confidence-bound, point-difference, sample-count, privacy,
 manifest, hash, and clean-provenance checks pass.  The two profiles use
 different checkpoints and policy settings; advisor evidence is therefore bound
 to an exact policy identity rather than combining the four rows under one live
-model.  The external result exceeds the published headline thresholds under
-the stricter clean-room proxy protocol, but it remains intentionally described
-as a proxy result—not a direct victory over the unavailable upstream checkpoint.
+model.
+
+The clean M3 production-architecture resource validation is recorded at
+`models/experiments/m3_resource_gate_stock_v2/20260715_155149/run_manifest.json`.
+At commit `dd587ab`, its 512/256 CTDE policy and full standard environment used
+eight CPU threads to process 8,192 transitions in 2.6197 seconds of learning:
+3,127.116 learning steps/s with 471,007,232 bytes (449.1875 MiB) peak RSS.  It
+wrote a hashed checkpoint and final archive and records the complete environment,
+seed, runtime, and observation schema.  This validates the production
+architecture's resource envelope, not the exact historical qualified-model
+invocation: that model was trained before explicit thread recording and likely
+used the then-observed six-thread PyTorch host default.  Its manifest cannot
+prove the exact thread count retrospectively.
+
+The external result exceeds the published headline thresholds under the
+stricter clean-room proxy protocol, but it remains intentionally described as a
+proxy result—not a direct victory over the unavailable upstream checkpoint.

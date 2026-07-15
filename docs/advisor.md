@@ -10,12 +10,15 @@ to the actor.
 
 Use the full-standard model for real Schieber games:
 
+The exact qualified archive is a local artifact rather than a Git-tracked file;
+see [`models/README.md`](../models/README.md) for its required path and SHA-256.
+
 ```bash
 .venv/bin/python -m rl.advisor_web \
   models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \
   --determinizations 24 --max-rollouts 216 \
-  --report models/experiments/formal_final_full_random_4000_seed49001.json \
-  --report models/experiments/formal_final_full_strategic_4000_seed49001.json
+  --report models/experiments/formal_final_full_random_stock_v2_4000_merged.json \
+  --report models/experiments/formal_final_full_strategic_stock_v2_4000_merged.json
 ```
 
 Then open `http://127.0.0.1:8765/`.  The server listens on loopback by default,
@@ -23,7 +26,10 @@ runs inference locally, and serializes concurrent requests around the shared
 model/search state.  Use fewer determinizations only as an explicitly
 unqualified latency tradeoff and omit the formal reports: a report is displayed
 only when its model hash, rules, search, guidance, artifact, and privacy checks
-match the live advisor exactly.
+match the live advisor exactly.  The canonical Stock-aware reports additionally
+bind the live policy implementation to SHA-256
+`d99631fb1b71693cd1dea729ae7ba413ba09865bd286e3017d260ce4183cb160`;
+older pre-fix full-profile reports are not accepted as current evidence.
 
 ## Enter a table state
 

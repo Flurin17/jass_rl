@@ -44,7 +44,11 @@ def _report(seed: int, metric: dict) -> dict:
         "model": {"sha256": "model", "path": "/model.zip"},
         "run": {"manifest_sha256": "manifest"},
         "evaluation_provenance": {
-            "git": {"commit": "abc", "working_tree_sha256": "tree"},
+            "git": {
+                "commit": "abc",
+                "working_tree_sha256": "tree",
+                "dirty": False,
+            },
             "runtime": {"python": "test"},
         },
         "compatibility": {
@@ -143,3 +147,29 @@ def test_merge_reports_requires_disjoint_complete_compatible_shards(tmp_path: Pa
     right.write_text(json.dumps(overlapping))
     with pytest.raises(ValueError, match="overlap"):
         merge_reports([left, right], output=output, required_games=16)
+
+
+def test_merge_reports_rejects_dirty_shards_even_when_they_agree(tmp_path: Path) -> None:
+    paths = []
+    for name, seed in (("left", 100), ("right", 104)):
+        report = _report(seed, _metric(wins=6, paired_wins=3, point_difference=20.0))
+        report["evaluation_provenance"]["git"]["dirty"] = True
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(report))
+        paths.append(path)
+
+    with pytest.raises(ValueError, match=r"git\.dirty must be exactly false"):
+        merge_reports(paths, output=tmp_path / "merged.json", required_games=16)
+
+
+def test_merge_reports_rejects_shards_with_missing_dirty_flag(tmp_path: Path) -> None:
+    paths = []
+    for name, seed in (("left", 100), ("right", 104)):
+        report = _report(seed, _metric(wins=6, paired_wins=3, point_difference=20.0))
+        del report["evaluation_provenance"]["git"]["dirty"]
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(report))
+        paths.append(path)
+
+    with pytest.raises(ValueError, match=r"git\.dirty must be exactly false"):
+        merge_reports(paths, output=tmp_path / "merged.json", required_games=16)
