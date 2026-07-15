@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --locked --extra rl --extra dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Test complete RL stack
+        run: uv run pytest -q --cov=core --cov=env --cov=rl --cov=cli --cov-report=term-missing
