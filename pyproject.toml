@@ -31,6 +31,7 @@ jass-play = "cli.play:main"
 jass-replay = "cli.replay:main"
 jass-train = "rl.train_selfplay:main"
 jass-eval = "rl.eval:main"
+jass-merge-evals = "rl.merge_evaluations:main"
 jass-qualify = "rl.qualify_hybrid:main"
 
 [tool.setuptools]
