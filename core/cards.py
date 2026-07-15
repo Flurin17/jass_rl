@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, List, Tuple
 
 # Generic suits/ranks; use a consistent ordering for deck creation.
-SUITS: Tuple[str, ...] = ("schellen", "rosen", "schilten", "eicheln")
-RANKS: Tuple[str, ...] = ("6", "7", "8", "9", "10", "J", "Q", "K", "A")
+SUITS: tuple[str, ...] = ("schellen", "rosen", "schilten", "eicheln")
+RANKS: tuple[str, ...] = ("6", "7", "8", "9", "10", "J", "Q", "K", "A")
 
 MODE_TRUMP = "trump"
 MODE_OBEABE = "obeabe"
@@ -27,7 +27,7 @@ class Card:
         return f"{self.rank} of {self.suit}"
 
 
-def make_deck() -> List[Card]:
+def make_deck() -> list[Card]:
     return [Card(suit, rank) for suit in SUITS for rank in RANKS]
 
 
@@ -37,4 +37,4 @@ def iter_deck() -> Iterable[Card]:
             yield Card(suit, rank)
 
 
-ALL_CARDS: Tuple[Card, ...] = tuple(iter_deck())
+ALL_CARDS: tuple[Card, ...] = tuple(iter_deck())

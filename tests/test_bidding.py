@@ -50,3 +50,9 @@ def test_non_trump_must_not_set_suit() -> None:
 
     with pytest.raises(ValueError):
         run_bidding(policy, starter=0)
+
+
+@pytest.mark.parametrize("starter", [-1, 4, True, 1.5])
+def test_invalid_starter_is_rejected(starter) -> None:
+    with pytest.raises(ValueError, match="starter"):
+        run_bidding(lambda state, player: BiddingAction(mode=MODE_OBEABE), starter=starter)

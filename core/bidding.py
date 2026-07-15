@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 from .cards import MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, SUITS
 
@@ -16,14 +16,14 @@ class BiddingState:
 @dataclass(frozen=True)
 class BiddingAction:
     mode: str
-    trump_suit: Optional[str] = None
+    trump_suit: str | None = None
     push: bool = False
 
 
 @dataclass(frozen=True)
 class BiddingResult:
     mode: str
-    trump_suit: Optional[str]
+    trump_suit: str | None
     chooser: int
     pushed: bool
 
@@ -47,6 +47,8 @@ def _validate_action(action: BiddingAction) -> None:
 
 
 def run_bidding(policy: Policy, starter: int = 0) -> BiddingResult:
+    if isinstance(starter, bool) or not isinstance(starter, int) or starter not in range(4):
+        raise ValueError("starter must be an integer from 0 to 3")
     state = BiddingState(starter=starter, current_player=starter, pushed=False)
     action = policy(state, state.current_player)
     _validate_action(action)

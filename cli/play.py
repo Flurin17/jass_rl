@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, List, Optional
 
-from core.cards import Card, MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, RANKS, SUITS
+from core.cards import MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, RANKS, SUITS, Card
 from core.game import play_round
 
 
@@ -50,15 +50,15 @@ def _policy_human(state, player: int) -> Card:
 @dataclass
 class PlayConfig:
     mode: str
-    trump_suit: Optional[str]
-    seed: Optional[int]
+    trump_suit: str | None
+    seed: int | None
     leader: int
-    players: List[str]
-    replay_out: Optional[str]
+    players: list[str]
+    replay_out: str | None
 
 
-def _build_policies(config: PlayConfig) -> List[Callable]:
-    policies: List[Callable] = []
+def _build_policies(config: PlayConfig) -> list[Callable]:
+    policies: list[Callable] = []
     for idx, kind in enumerate(config.players):
         if kind == "human":
             policies.append(_policy_human)

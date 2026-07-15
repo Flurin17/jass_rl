@@ -1,12 +1,14 @@
-from core.cards import Card, MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, SUITS
-from core.rankings import OBEABE_ORDER, TRUMP_ORDER, UNEUFE_ORDER, beats
+import pytest
+
+from core.cards import MODE_OBEABE, MODE_TRUMP, MODE_UNEUFE, SUITS, Card
+from core.rankings import OBEABE_ORDER, TRUMP_ORDER, UNEUFE_ORDER, beats, winning_card
 
 
 def test_trump_order() -> None:
     trump_suit = SUITS[0]
     led_suit = trump_suit
     cards = [Card(trump_suit, rank) for rank in TRUMP_ORDER]
-    for higher, lower in zip(cards, cards[1:]):
+    for higher, lower in zip(cards, cards[1:], strict=False):
         assert beats(higher, lower, led_suit, MODE_TRUMP, trump_suit)
 
 
@@ -14,21 +16,21 @@ def test_non_trump_order_in_trump_mode() -> None:
     trump_suit = SUITS[0]
     led_suit = SUITS[1]
     cards = [Card(led_suit, rank) for rank in OBEABE_ORDER]
-    for higher, lower in zip(cards, cards[1:]):
+    for higher, lower in zip(cards, cards[1:], strict=False):
         assert beats(higher, lower, led_suit, MODE_TRUMP, trump_suit)
 
 
 def test_obeabe_order() -> None:
     led_suit = SUITS[0]
     cards = [Card(led_suit, rank) for rank in OBEABE_ORDER]
-    for higher, lower in zip(cards, cards[1:]):
+    for higher, lower in zip(cards, cards[1:], strict=False):
         assert beats(higher, lower, led_suit, MODE_OBEABE)
 
 
 def test_uneufe_order() -> None:
     led_suit = SUITS[0]
     cards = [Card(led_suit, rank) for rank in UNEUFE_ORDER]
-    for higher, lower in zip(cards, cards[1:]):
+    for higher, lower in zip(cards, cards[1:], strict=False):
         assert beats(higher, lower, led_suit, MODE_UNEUFE)
 
 
@@ -47,3 +49,13 @@ def test_led_suit_beats_off_suit_in_non_trump_modes() -> None:
     off_card = Card(off_suit, "A")
     assert beats(led_card, off_card, led_suit, MODE_OBEABE)
     assert beats(led_card, off_card, led_suit, MODE_UNEUFE)
+
+
+def test_ranking_rejects_invalid_contract_context_and_empty_trick() -> None:
+    card = Card("rosen", "A")
+    with pytest.raises(ValueError, match="led_suit"):
+        beats(card, card, "invalid", MODE_OBEABE)
+    with pytest.raises(ValueError, match="trump_suit"):
+        beats(card, card, "rosen", MODE_OBEABE, "schilten")
+    with pytest.raises(ValueError, match="at least one"):
+        winning_card([], "rosen", MODE_OBEABE)
