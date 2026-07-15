@@ -65,8 +65,9 @@ Swiss suit names are used throughout: `schellen`, `rosen`, `schilten`, and
 
 The measured M3 benchmarks favor CPU for this masked network workload.  A clean
 production-architecture resource validation processed 8,192 transitions at
-3,127.116 learning steps/s using eight CPU threads, with 471,007,232 bytes peak
-RSS.  This validates the current resource envelope; the historical manifest did
+2,750.622 learning steps/s using eight CPU threads, with 471,269,376 bytes peak
+RSS.  Its clean manifest records the chip and 36 GB physical memory directly.
+This validates the current resource envelope; the historical model manifest did
 not record thread count and likely used PyTorch's then-observed six-thread host
 default.  A basic new
 full-profile run is:

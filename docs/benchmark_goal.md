@@ -127,17 +127,18 @@ different checkpoints and policy settings; advisor evidence is therefore bound
 to an exact policy identity rather than combining the four rows under one live
 model.
 
-The clean M3 production-architecture resource validation is recorded at
-`models/experiments/m3_resource_gate_stock_v2/20260715_155149/run_manifest.json`.
-At commit `dd587ab`, its 512/256 CTDE policy and full standard environment used
-eight CPU threads to process 8,192 transitions in 2.6197 seconds of learning:
-3,127.116 learning steps/s with 471,007,232 bytes (449.1875 MiB) peak RSS.  It
-wrote a hashed checkpoint and final archive and records the complete environment,
-seed, runtime, and observation schema.  This validates the production
-architecture's resource envelope, not the exact historical qualified-model
-invocation: that model was trained before explicit thread recording and likely
-used the then-observed six-thread PyTorch host default.  Its manifest cannot
-prove the exact thread count retrospectively.
+The canonical clean production-architecture resource validation is recorded at
+`models/experiments/m3_resource_gate_final/20260715_170541/run_manifest.json`.
+At commit `b99d7bc`, its 512/256 CTDE policy and full standard environment used
+eight CPU threads to process 8,192 transitions in 2.9782 seconds of learning:
+2,750.622 learning steps/s with 471,269,376 bytes (449.4375 MiB) peak RSS.  The
+manifest directly records Apple M3 Pro, model identifier `Mac15,7`, 38,654,705,664
+bytes of physical memory, a clean Git tree, the complete environment, seed,
+runtime, observation schema, and hashes for the checkpoint and final archive.
+This validates the production architecture's resource envelope, not the exact
+historical qualified-model invocation: that model was trained before explicit
+thread recording and likely used the then-observed six-thread PyTorch host
+default.  Its manifest cannot prove the exact thread count retrospectively.
 
 The external result exceeds the published headline thresholds under the
 stricter clean-room proxy protocol, but it remains intentionally described as a

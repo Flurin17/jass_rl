@@ -60,22 +60,22 @@ Reproduce one cell with:
 ## Production resource gate
 
 The canonical resource evidence is the clean manifested run at
-`models/experiments/m3_resource_gate_stock_v2/20260715_155149/run_manifest.json`.
+`models/experiments/m3_resource_gate_final/20260715_170541/run_manifest.json`.
 Unlike the small device comparison above, it exercises the production 512/256
 CTDE network, full standard Schieber environment, eight environments, and the
 80/20 strategic/random curriculum.  It was run on CPU from clean commit
-`dd587ab4a23042cbf5f7b76ef7a48af1c83625aa`:
+`b99d7bcf336ca56ce02784177aef866ee7d46df5`:
 
 | CPU threads | Transitions | Learning time | Learning throughput | Peak RSS |
 | ---: | ---: | ---: | ---: | ---: |
-| 8 | 8,192 | 2.6197 s | 3,127.116 steps/s | 471,007,232 bytes (449.1875 MiB) |
+| 8 | 8,192 | 2.9782 s | 2,750.622 steps/s | 471,269,376 bytes (449.4375 MiB) |
 
-The manifest also records seed `20260722`, observation schema 2, the full rules
-and environment payload, runtime versions, and SHA-256 values for its checkpoint
-and final archive.  This one-rollout run validates the production architecture's
+The manifest also records Apple M3 Pro, model identifier `Mac15,7`, 36 GB of
+physical memory, seed `20260722`, observation schema 2, the full rules and
+environment payload, runtime versions, and SHA-256 values for its checkpoint and
+final archive.  This one-rollout run validates the production architecture's
 resource envelope and resumable artifact path.  It does not validate playing
-strength and was not the invocation that produced the historical qualified
-model.
+strength and was not the invocation that produced the historical qualified model.
 
 Reproduce its configuration with:
 
@@ -90,7 +90,7 @@ MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
   --reward-scale 0.004 --terminal-win-bonus 0.5 \
   --opponent-mixture strategic=0.8,random=0.2 \
   --normalize-contract-reward --device cpu --seed 20260722 \
-  --save-dir models/experiments/m3_resource_gate_stock_v2
+  --save-dir models/experiments/m3_resource_gate_final
 ```
 
 ## Full-standard continuation

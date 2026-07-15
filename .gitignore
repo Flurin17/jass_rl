@@ -44,6 +44,11 @@ models/experiments/m3_resource_gate_stock_v2/*
 !models/experiments/m3_resource_gate_stock_v2/20260715_155149/
 models/experiments/m3_resource_gate_stock_v2/20260715_155149/*
 !models/experiments/m3_resource_gate_stock_v2/20260715_155149/run_manifest.json
+!models/experiments/m3_resource_gate_final/
+models/experiments/m3_resource_gate_final/*
+!models/experiments/m3_resource_gate_final/20260715_170541/
+models/experiments/m3_resource_gate_final/20260715_170541/*
+!models/experiments/m3_resource_gate_final/20260715_170541/run_manifest.json
 !models/experiments/ppo_full_consolidation_v1/
 models/experiments/ppo_full_consolidation_v1/*
 !models/experiments/ppo_full_consolidation_v1/20260715_095439/
