@@ -18,7 +18,7 @@ from rl.advisor import AdvisorState, JassAdvisor, card_code, load_advisor, parse
 from rl.eval import EvaluationEnvironment
 from rl.hybrid_policy import NeuralGuidanceConfig
 from rl.run_manifest import MANIFEST_FILENAME, MANIFEST_VERSION, write_manifest
-from rl.search_policy import PIMCConfig
+from rl.search_policy import PIMCConfig, policy_implementation_identity
 
 
 class _Policy:
@@ -196,6 +196,8 @@ def test_advisor_returns_ranked_legal_actions_with_uncertainty() -> None:
         assert all(action.determinizations == 2 for action in advice.actions)
         assert all(action.standard_error is not None for action in advice.actions)
         assert sum(action.neural_probability for action in advice.actions) == pytest.approx(1.0)
+        assert advice.manifest_sha256 is None
+        assert advice.policy_implementation == policy_implementation_identity()
     finally:
         env.close()
 

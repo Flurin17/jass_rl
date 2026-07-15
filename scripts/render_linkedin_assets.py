@@ -7,6 +7,7 @@ it never invents intermediate win rates or training measurements.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import random
@@ -26,6 +27,10 @@ PAPER = "#f4ecd8"
 PAPER_INK = "#17241e"
 LINE = "#315047"
 
+TARGET_GIF_BYTES = 5 * 1024 * 1024
+MAX_GIF_FRAMES = 500
+MAX_GIF_ANIMATED_PIXELS = 36_152_320
+
 FONT_SANS = Path("/System/Library/Fonts/SFNS.ttf")
 FONT_MONO = Path("/System/Library/Fonts/SFNSMono.ttf")
 FONT_SERIF = Path("/System/Library/Fonts/NewYork.ttf")
@@ -38,32 +43,110 @@ def font(path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         return ImageFont.load_default(size=size)
 
 
-def report_metrics(path: Path) -> dict[str, Any]:
+def _implementation_digest(files: list[str]) -> str:
+    root = Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256()
+    for relative in files:
+        path = root / relative
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def report_metrics(path: Path, *, expected_opponent: str) -> dict[str, Any]:
     payload = json.loads(path.read_text())
-    opponent, report = next(iter(payload["opponents"].items()))
+    if payload.get("report_version") != 2:
+        raise ValueError(f"{path}: expected report_version 2")
+    provenance = payload.get("evaluation_provenance", {}).get("git", {})
+    if provenance.get("dirty") is not False:
+        raise ValueError(f"{path}: report must come from a clean Git tree")
+    if payload.get("qualification", {}).get("all_requested") is not True:
+        raise ValueError(f"{path}: merged qualification did not pass")
+    opponents = payload.get("opponents")
+    if not isinstance(opponents, dict) or set(opponents) != {expected_opponent}:
+        raise ValueError(f"{path}: expected only opponent {expected_opponent!r}")
+    report = opponents[expected_opponent]
+    if report.get("qualification", {}).get("qualified") is not True:
+        raise ValueError(f"{path}: opponent qualification did not pass")
+    candidate = payload.get("candidate_policy", {})
+    if candidate.get("type") != "NeuralGuidedPIMCPolicy":
+        raise ValueError(f"{path}: unexpected candidate policy")
+    implementation = candidate.get("implementation")
+    if not isinstance(implementation, dict):
+        raise ValueError(f"{path}: policy implementation identity is missing")
+    files = implementation.get("files")
+    if not isinstance(files, list) or not all(isinstance(item, str) for item in files):
+        raise ValueError(f"{path}: policy implementation files are invalid")
+    if implementation.get("sha256") != _implementation_digest(files):
+        raise ValueError(f"{path}: report policy no longer matches this checkout")
     overall = report["metrics"]["overall"]
     return {
-        "opponent": opponent,
+        "opponent": expected_opponent,
         "win_rate": float(overall["win_rate"]),
         "win_low": float(overall["win_rate_ci95"]["low"]),
         "paired_win_rate": float(overall["paired_win_rate"]),
         "point_difference": float(overall["average_point_difference"]),
         "games": int(overall["episodes"]),
+        "model_sha256": payload["model"]["sha256"],
+        "model_timesteps": int(payload["model"]["num_timesteps"]),
+        "manifest_sha256": payload["run"]["manifest_sha256"],
+        "implementation": implementation,
     }
 
 
 def load_inputs(args: argparse.Namespace) -> dict[str, Any]:
-    resource = json.loads(args.resource_manifest.read_text())
-    model = json.loads(args.model_manifest.read_text())
+    model_bytes = args.model_manifest.read_bytes()
+    model = json.loads(model_bytes)
     advice = json.loads(args.advice.read_text())
+    full_random = report_metrics(args.full_random, expected_opponent="random")
+    full_strategic = report_metrics(args.full_strategic, expected_opponent="strategic")
+    if full_random["model_sha256"] != full_strategic["model_sha256"]:
+        raise ValueError("full-game reports do not evaluate the same model")
+    if full_random["implementation"] != full_strategic["implementation"]:
+        raise ValueError("full-game reports do not evaluate the same policy implementation")
+    model_sha256 = model.get("final_model_sha256")
+    if model_sha256 != full_random["model_sha256"]:
+        raise ValueError("model manifest does not match the qualified reports")
+    model_steps = int(model["actual_timesteps"])
+    if {full_random["model_timesteps"], full_strategic["model_timesteps"]} != {
+        model_steps
+    }:
+        raise ValueError("training-step evidence does not match the qualified reports")
+    manifest_sha256 = hashlib.sha256(model_bytes).hexdigest()
+    if {
+        full_random["manifest_sha256"],
+        full_strategic["manifest_sha256"],
+        advice.get("manifest_sha256"),
+    } != {manifest_sha256}:
+        raise ValueError("advisor and reports do not share the supplied model manifest")
+    if advice.get("model_sha256") != model_sha256:
+        raise ValueError("advisor example does not use the qualified model")
+    if advice.get("policy_implementation") != full_random["implementation"]:
+        raise ValueError("advisor example does not use the qualified policy implementation")
+    actions = advice.get("actions")
+    if not isinstance(actions, list) or not actions:
+        raise ValueError("advisor example has no ranked actions")
+    selected = [row for row in actions if row.get("selected") is True]
+    if len(selected) != 1 or selected[0].get("card") != advice.get("selected_card"):
+        raise ValueError("advisor example has an inconsistent selected card")
+    if advice.get("selected_card") != "schilten:9":
+        raise ValueError("social example expects the qualified Schilten 9 decision")
+    best_search = max(actions, key=lambda row: float(row["expected_margin"]))
+    best_instinct = max(actions, key=lambda row: float(row["neural_probability"]))
+    if best_search.get("card") != "schilten:9" or best_instinct.get("card") != "schilten:J":
+        raise ValueError("social example no longer supports the 9-versus-J explanation")
+    if advice.get("successful_determinizations") != 24 or advice.get("used_fallback"):
+        raise ValueError("advisor example must complete all 24 hidden-hand samples")
+    if any(row.get("determinizations") != 24 for row in actions):
+        raise ValueError("advisor example must score every card on all 24 hidden hands")
+    test_games = full_random["games"] + full_strategic["games"]
     return {
-        "full_random": report_metrics(args.full_random),
-        "full_strategic": report_metrics(args.full_strategic),
-        "external_random": report_metrics(args.external_random),
-        "external_reference": report_metrics(args.external_reference),
-        "resource": resource["resource_usage"],
-        "model_steps": int(model["actual_timesteps"]),
-        "checkpoint_count": len(model["checkpoints"]),
+        "full_random": full_random,
+        "full_strategic": full_strategic,
+        "model_steps": model_steps,
+        "test_games": test_games,
         "advice": advice,
     }
 
@@ -156,8 +239,9 @@ def card(
 
 
 def metric_strip(draw: ImageDraw.ImageDraw, metrics: list[tuple[str, float]], y: int) -> None:
-    x_positions = (72, 352, 632, 912)
-    for x, (label, value) in zip(x_positions, metrics, strict=True):
+    column_width = 1056 / len(metrics)
+    for index, (label, value) in enumerate(metrics):
+        x = int(72 + index * column_width)
         text(draw, (x, y), label.upper(), typeface=font(FONT_SANS, 20), fill=MUTED)
         text(draw, (x, y + 35), f"{value * 100:.2f}%", typeface=font(FONT_MONO, 40), fill=INK)
 
@@ -165,19 +249,19 @@ def metric_strip(draw: ImageDraw.ImageDraw, metrics: list[tuple[str, float]], y:
 def render_hero(data: dict[str, Any], out: Path) -> None:
     image = background((1200, 1200)).convert("RGBA")
     draw = ImageDraw.Draw(image, "RGBA")
-    eyebrow(draw, "Local ML · Swiss Schieber", 72, 62)
+    eyebrow(draw, "AI meets Swiss Jass", 72, 62)
     text(
         draw,
         (68, 118),
-        "A Jass advisor\nthat survived\n16,000 games.",
+        "I taught an AI\nto play Jass.",
         typeface=font(FONT_SERIF, 78),
         spacing=-2,
     )
     text(
         draw,
-        (72, 410),
-        "PUBLIC INFORMATION ONLY  ·  NEURAL ACTOR + 24-WORLD SEARCH",
-        typeface=font(FONT_MONO, 20),
+        (72, 360),
+        f"Then I made it prove itself in {data['test_games']:,} full games.",
+        typeface=font(FONT_SANS, 26),
         fill=GOLD,
     )
 
@@ -185,39 +269,34 @@ def render_hero(data: dict[str, Any], out: Path) -> None:
     card(image, (976, 285), "✿", "K", angle=5, scale=.76)
     card(image, (1060, 342), "▰", "9", angle=17, selected=True, scale=.76)
 
-    draw.line((72, 495, 1128, 495), fill=LINE, width=2)
-    metrics = [
-        ("Random", data["full_random"]["win_rate"]),
-        ("Strategic", data["full_strategic"]["win_rate"]),
-        ("Ext. random", data["external_random"]["win_rate"]),
-        ("Ext. proxy", data["external_reference"]["win_rate"]),
-    ]
-    metric_strip(draw, metrics, 540)
+    draw.line((72, 455, 1128, 455), fill=LINE, width=2)
+    metric_strip(
+        draw,
+        [
+            ("Wins vs random play", data["full_random"]["win_rate"]),
+            ("Wins vs strategy", data["full_strategic"]["win_rate"]),
+        ],
+        505,
+    )
 
-    draw.rounded_rectangle((72, 700, 1128, 1010), radius=28, fill=(244, 236, 216, 255))
-    text(draw, (112, 748), "TRAINED LOCALLY", typeface=font(FONT_SANS, 22), fill="#53635a")
-    text(draw, (112, 792), "Apple M3 Pro · 36 GB", typeface=font(FONT_SERIF, 47), fill=PAPER_INK)
-    speed = float(data["resource"]["steps_per_learning_second"])
-    memory_mib = float(data["resource"]["peak_rss_bytes"]) / 1024**2
-    text(
-        draw,
-        (112, 875),
-        f"{speed:,.0f} steps/s   ·   {memory_mib:.0f} MiB peak RSS   ·   8 CPU threads",
-        typeface=font(FONT_MONO, 24),
-        fill=PAPER_INK,
-    )
-    text(
-        draw,
-        (112, 932),
-        "Rule-correct Schieber · paired same-deal evaluation · strict confidence gates",
-        typeface=font(FONT_SANS, 22),
-        fill="#53635a",
-    )
+    draw.rounded_rectangle((72, 675, 1128, 1015), radius=28, fill=(244, 236, 216, 255))
+    text(draw, (112, 720), "FROM PRACTICE TO ADVICE", typeface=font(FONT_SANS, 22), fill="#53635a")
+    steps = [
+        ("1", "LEARN", f"{data['model_steps'] / 1_000_000:.0f} million\npractice decisions"),
+        ("2", "THINK", "24 possible\nhidden hands"),
+        ("3", "ADVISE", "Suggest the\nnext card"),
+    ]
+    for index, (number, label, copy) in enumerate(steps):
+        x = 112 + index * 340
+        draw.ellipse((x, 785, x + 52, 837), fill=MINT)
+        text(draw, (x + 26, 811), number, typeface=font(FONT_MONO, 25), fill=FELT, anchor="mm")
+        text(draw, (x, 862), label, typeface=font(FONT_SANS, 20), fill="#53635a")
+        text(draw, (x, 900), copy, typeface=font(FONT_SERIF, 29), fill=PAPER_INK, spacing=6)
     text(draw, (72, 1080), "jass_rl", typeface=font(FONT_MONO, 25), fill=MINT)
     text(
         draw,
         (1128, 1080),
-        "EXTERNAL RESULTS USE A CLEAN-ROOM PROXY",
+        "FAIR TEST · BOTH SIDES PLAYED THE SAME CARDS",
         typeface=font(FONT_SANS, 18),
         fill=MUTED,
         anchor="ra",
@@ -226,49 +305,40 @@ def render_hero(data: dict[str, Any], out: Path) -> None:
     image.convert("RGB").save(out, quality=95)
 
 
-def render_decision(data: dict[str, Any], out: Path) -> None:
+def render_decision(_data: dict[str, Any], out: Path) -> None:
     image = background((1200, 1200), seed=23).convert("RGBA")
     draw = ImageDraw.Draw(image, "RGBA")
-    eyebrow(draw, "One real advisor decision", 72, 62)
+    eyebrow(draw, "One example decision", 72, 62)
     text(
         draw,
         (68, 118),
-        "The actor wanted J.\nSearch kept the 9.",
+        "Its first instinct: J.\nIts final choice: 9.",
         typeface=font(FONT_SERIF, 72),
         spacing=1,
     )
-    actions = {row["card"]: row for row in data["advice"]["actions"]}
-    nine = actions["schilten:9"]
-    jack = actions["schilten:J"]
     card(image, (330, 590), "▰", "9", selected=True, scale=1.2)
     card(image, (640, 590), "▰", "J", scale=1.2)
-    text(draw, (242, 785), "SEARCH", typeface=font(FONT_SANS, 22), fill=MINT)
-    text(draw, (242, 825), f"{nine['expected_margin']:+.2f}", typeface=font(FONT_MONO, 38))
-    text(draw, (552, 785), "NEURAL PRIOR", typeface=font(FONT_SANS, 22), fill=GOLD)
-    text(
-        draw,
-        (552, 825),
-        f"{jack['neural_probability'] * 100:.2f}%",
-        typeface=font(FONT_MONO, 38),
-    )
+    text(draw, (242, 785), "FINAL CHOICE", typeface=font(FONT_SANS, 22), fill=MINT)
+    text(draw, (242, 825), "9 of Schilten", typeface=font(FONT_SERIF, 32))
+    text(draw, (552, 785), "FIRST INSTINCT", typeface=font(FONT_SANS, 22), fill=GOLD)
+    text(draw, (552, 825), "Jack of Schilten", typeface=font(FONT_SERIF, 32))
 
     draw.rounded_rectangle((820, 390, 1128, 865), radius=28, fill=(244, 236, 216, 255))
-    text(draw, (860, 430), "24 POSSIBLE WORLDS", typeface=font(FONT_SANS, 20), fill="#53635a")
+    text(draw, (860, 430), "24 POSSIBLE HANDS", typeface=font(FONT_SANS, 20), fill="#53635a")
     for index in range(24):
         row, column = divmod(index, 6)
         x, y = 875 + column * 38, 490 + row * 45
-        draw.ellipse((x, y, x + 17, y + 17), fill=MINT if index < 20 else GOLD)
-    gap = float(nine["expected_margin"] - jack["expected_margin"])
-    text(draw, (860, 705), "SEARCH GAP", typeface=font(FONT_SANS, 19), fill="#53635a")
-    text(draw, (860, 740), f"{gap:+.2f} pts", typeface=font(FONT_MONO, 36), fill=PAPER_INK)
-    text(draw, (860, 798), "Override limit  +3.00", typeface=font(FONT_MONO, 20), fill="#53635a")
+        draw.ellipse((x, y, x + 17, y + 17), fill=MINT)
+    text(draw, (860, 705), "WHY THE 9?", typeface=font(FONT_SANS, 19), fill="#53635a")
+    text(draw, (860, 744), "It edged ahead", typeface=font(FONT_SERIF, 30), fill=PAPER_INK)
+    text(draw, (860, 784), "in this check.", typeface=font(FONT_SERIF, 30), fill=PAPER_INK)
 
     draw.line((72, 930, 1128, 930), fill=LINE, width=2)
     text(
         draw,
         (72, 975),
-        "The learned policy may override search only inside a 3-point guardrail.\n"
-        "Here the gap was wider, so the safer search choice stayed in control.",
+        "Most of the cards are hidden in Jass. So before suggesting a play,\n"
+        "the advisor checks how each legal card could work across many likely hands.",
         typeface=font(FONT_SANS, 27),
         fill=INK,
         spacing=10,
@@ -290,113 +360,121 @@ def progress_bar(
     draw.rounded_rectangle((x0, y0, fill_right, y1), radius=12, fill=color)
 
 
-def gif_frame(data: dict[str, Any], index: int, total: int) -> Image.Image:
-    image = background((960, 960), seed=31).convert("RGBA")
+def gif_frame(data: dict[str, Any], index: int) -> Image.Image:
+    image = background((900, 900), seed=31).convert("RGBA")
     draw = ImageDraw.Draw(image, "RGBA")
-    eyebrow(draw, "Building a Jass advisor on one laptop", 54, 46)
-    phase = index / total
+    eyebrow(draw, "Teaching an AI to play Jass", 50, 44)
 
-    if phase < .38:
-        local = phase / .38
-        text(draw, (52, 112), "Training,\nlocally.", typeface=font(FONT_SERIF, 78), spacing=0)
-        trained = int(data["model_steps"] * min(1.0, local))
-        text(draw, (54, 350), f"{trained:,}", typeface=font(FONT_MONO, 54), fill=INK)
-        text(draw, (54, 418), "PPO TIMESTEPS", typeface=font(FONT_SANS, 22), fill=MUTED)
-        progress_bar(draw, (54, 490, 906, 520), local)
-        checkpoints = data["checkpoint_count"]
-        for checkpoint in range(checkpoints):
-            x = 62 + checkpoint * (830 / max(1, checkpoints - 1))
-            active = checkpoint / checkpoints <= local
-            draw.ellipse((x - 5, 559, x + 5, 569), fill=MINT if active else LINE)
+    if index <= 9:
+        local = index / 9
         text(
             draw,
-            (54, 625),
-            f"{checkpoints} HASHED CHECKPOINTS   ·   M3 PRO   ·   8 CPU THREADS",
-            typeface=font(FONT_MONO, 21),
+            (48, 108),
+            "First, it learned\nthe game.",
+            typeface=font(FONT_SERIF, 70),
+            spacing=0,
+        )
+        trained = int(data["model_steps"] * min(1.0, local))
+        text(draw, (50, 345), f"{trained:,}", typeface=font(FONT_MONO, 49), fill=INK)
+        text(draw, (50, 408), "PRACTICE DECISIONS", typeface=font(FONT_SANS, 21), fill=MUTED)
+        progress_bar(draw, (50, 475, 850, 505), local)
+        text(
+            draw,
+            (50, 575),
+            "LEGAL CARDS  ·  SCORING  ·  TEAMWORK",
+            typeface=font(FONT_MONO, 20),
             fill=GOLD,
         )
-        speed = float(data["resource"]["steps_per_learning_second"])
-        memory_mib = float(data["resource"]["peak_rss_bytes"]) / 1024**2
         text(
             draw,
-            (54, 720),
-            f"Resource gate\n{speed:,.0f} steps/s  ·  {memory_mib:.0f} MiB peak RSS",
+            (50, 675),
+            "It practised choosing a card,\nseeing what happened, and trying again.",
             typeface=font(FONT_SANS, 28),
             fill=MUTED,
             spacing=12,
         )
-    elif phase < .62:
-        local = (phase - .38) / .24
+    elif index <= 18:
+        local = (index - 10) / 8
         worlds = max(1, min(24, math.ceil(local * 24)))
-        text(draw, (52, 112), "Search the\npossible worlds.", typeface=font(FONT_SERIF, 66))
+        text(
+            draw,
+            (48, 108),
+            "Then it learned to\nthink past one hand.",
+            typeface=font(FONT_SERIF, 62),
+        )
         for world in range(24):
             angle = 2 * math.pi * world / 24
-            radius = 235 + 25 * math.sin(world * 1.7)
-            x = 480 + math.cos(angle) * radius
-            y = 535 + math.sin(angle) * radius
+            radius = 220 + 23 * math.sin(world * 1.7)
+            x = 450 + math.cos(angle) * radius
+            y = 515 + math.sin(angle) * radius
             active = world < worlds
             draw.ellipse((x - 12, y - 12, x + 12, y + 12), fill=MINT if active else LINE)
             if active:
-                draw.line((480, 535, x, y), fill=(118, 198, 162, 38), width=2)
-        card(image, (480, 535), "▰", "9", selected=True, scale=.9)
+                draw.line((450, 515, x, y), fill=(118, 198, 162, 38), width=2)
+        card(image, (450, 515), "▰", "9", selected=True, scale=.9)
         text(
             draw,
-            (480, 835),
-            f"{worlds}/24 DETERMINIZATIONS",
-            typeface=font(FONT_MONO, 25),
+            (450, 805),
+            f"{worlds}/24 POSSIBLE HIDDEN HANDS CHECKED",
+            typeface=font(FONT_MONO, 22),
             fill=GOLD,
             anchor="mm",
         )
-    elif phase < .88:
-        local = (phase - .62) / .26
-        text(draw, (52, 112), "Then make it\nprove itself.", typeface=font(FONT_SERIF, 68))
+    elif index <= 28:
+        local = (index - 19) / 9
+        text(draw, (48, 108), "Finally, I made it\nprove itself.", typeface=font(FONT_SERIF, 65))
         rows = [
-            ("RANDOM", data["full_random"]["win_rate"], .60),
-            ("STRATEGIC", data["full_strategic"]["win_rate"], .55),
-            ("EXT. RANDOM", data["external_random"]["win_rate"], .87),
-            ("EXT. PROXY", data["external_reference"]["win_rate"], .67),
+            ("WINS VS RANDOM PLAY", data["full_random"]["win_rate"]),
+            ("WINS VS STRATEGY", data["full_strategic"]["win_rate"]),
         ]
-        for row, (label, value, gate) in enumerate(rows):
-            y = 390 + row * 115
-            shown = value * min(1.0, max(0.0, local * 1.5 - row * .12))
-            text(draw, (54, y), label, typeface=font(FONT_SANS, 23), fill=MUTED)
-            text(draw, (906, y), f"{shown * 100:.2f}%", typeface=font(FONT_MONO, 28), anchor="ra")
-            progress_bar(
-                draw,
-                (54, y + 44, 906, y + 66),
-                shown,
-                color=MINT if shown >= gate else GOLD,
-            )
-            gate_x = 54 + int(852 * gate)
-            draw.line((gate_x, y + 38, gate_x, y + 72), fill=INK, width=3)
-    else:
-        text(draw, (52, 112), "Qualified.\nNow it can advise.", typeface=font(FONT_SERIF, 70))
-        card(image, (285, 510), "▰", "9", selected=True, scale=1.05)
-        draw.rounded_rectangle((520, 340, 906, 690), radius=25, fill=(244, 236, 216, 255))
-        text(draw, (560, 385), "FORMAL RESULT", typeface=font(FONT_SANS, 21), fill="#53635a")
+        for row, (label, value) in enumerate(rows):
+            y = 390 + row * 155
+            shown = value * min(1.0, max(0.0, local * 1.35 - row * .18))
+            text(draw, (50, y), label, typeface=font(FONT_SANS, 23), fill=MUTED)
+            text(draw, (850, y), f"{shown * 100:.2f}%", typeface=font(FONT_MONO, 29), anchor="ra")
+            progress_bar(draw, (50, y + 48, 850, y + 74), shown)
         text(
             draw,
-            (560, 435),
+            (50, 735),
+            f"{data['test_games']:,} FULL GAMES\nFAIR TEST · BOTH SIDES GOT THE SAME CARDS",
+            typeface=font(FONT_MONO, 22),
+            fill=GOLD,
+            spacing=12,
+        )
+    else:
+        text(draw, (48, 108), "Tested.\nReady to advise.", typeface=font(FONT_SERIF, 68))
+        card(image, (260, 495), "▰", "9", selected=True, scale=1.02)
+        draw.rounded_rectangle((490, 315, 850, 685), radius=25, fill=(244, 236, 216, 255))
+        text(
+            draw,
+            (530, 360),
+            f"{data['test_games']:,} TEST GAMES",
+            typeface=font(FONT_SANS, 21),
+            fill="#53635a",
+        )
+        text(
+            draw,
+            (530, 420),
             f"{data['full_strategic']['win_rate'] * 100:.2f}%",
-            typeface=font(FONT_MONO, 54),
+            typeface=font(FONT_MONO, 50),
             fill=PAPER_INK,
         )
-        text(draw, (560, 508), "vs strategic", typeface=font(FONT_SERIF, 36), fill=PAPER_INK)
+        text(draw, (530, 485), "wins vs strategy", typeface=font(FONT_SERIF, 31), fill=PAPER_INK)
         text(
             draw,
-            (560, 575),
-            f"paired wins  {data['full_strategic']['paired_win_rate'] * 100:.2f}%\n"
-            f"mean diff   +{data['full_strategic']['point_difference']:.1f}",
-            typeface=font(FONT_MONO, 22),
+            (530, 570),
+            f"{data['full_random']['win_rate'] * 100:.2f}% wins\nvs random play",
+            typeface=font(FONT_SANS, 25),
             fill="#53635a",
             spacing=10,
         )
-        text(draw, (54, 820), "PUBLIC INFORMATION ONLY", typeface=font(FONT_MONO, 23), fill=GOLD)
+        text(draw, (50, 790), "THE NEXT MOVE, EXPLAINED", typeface=font(FONT_MONO, 23), fill=GOLD)
     return image.convert("RGB")
 
 
 def render_gif(data: dict[str, Any], out: Path) -> None:
-    frames = [gif_frame(data, index, 52) for index in range(52)]
+    frame_count = 36
+    frames = [gif_frame(data, index) for index in range(frame_count)]
     palette_frames = [
         frame.convert("P", palette=Image.Palette.ADAPTIVE, colors=128)
         for frame in frames
@@ -410,17 +488,22 @@ def render_gif(data: dict[str, Any], out: Path) -> None:
         loop=0,
         optimize=True,
         disposal=2,
-        comment=b"Verified Jass RL training and qualification timelapse",
+        comment=b"Illustrated Jass AI training and verified evaluation story",
     )
+    with Image.open(out) as rendered:
+        animated_pixels = rendered.width * rendered.height * rendered.n_frames
+        if rendered.n_frames > MAX_GIF_FRAMES:
+            raise ValueError("rendered GIF exceeds LinkedIn's frame limit")
+        if animated_pixels > MAX_GIF_ANIMATED_PIXELS:
+            raise ValueError("rendered GIF exceeds LinkedIn's animated-pixel limit")
+    if out.stat().st_size > TARGET_GIF_BYTES:
+        raise ValueError("rendered GIF exceeds this project's compact 5 MiB target")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--full-random", type=Path, required=True)
     parser.add_argument("--full-strategic", type=Path, required=True)
-    parser.add_argument("--external-random", type=Path, required=True)
-    parser.add_argument("--external-reference", type=Path, required=True)
-    parser.add_argument("--resource-manifest", type=Path, required=True)
     parser.add_argument("--model-manifest", type=Path, required=True)
     parser.add_argument("--advice", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("docs/assets/linkedin"))

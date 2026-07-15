@@ -482,6 +482,8 @@ class Advice:
     used_fallback: bool
     neural_override: bool
     model_sha256: str | None
+    manifest_sha256: str | None
+    policy_implementation: dict[str, object]
     profile_version: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -643,6 +645,8 @@ class JassAdvisor:
             used_fallback=self.search.last_stats.used_fallback,
             neural_override=bool(last_decision and last_decision.overridden),
             model_sha256=self.policy.model_sha256,
+            manifest_sha256=self.manifest_sha256,
+            policy_implementation=self.implementation_identity,
             profile_version=self.profile.version,
         )
 
