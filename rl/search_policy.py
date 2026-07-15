@@ -118,6 +118,7 @@ class SearchStats:
     elapsed_seconds: float = 0.0
     used_fallback: bool = False
     action_values: tuple[tuple[int, float, int], ...] = ()
+    action_uncertainty: tuple[tuple[int, float | None], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -916,6 +917,7 @@ class PIMCSearchPolicy:
 
         rng = self._decision_rng(vector, np.asarray(action_mask))
         totals = {action: 0.0 for action in card_actions}
+        squared_totals = {action: 0.0 for action in card_actions}
         visits = {action: 0 for action in card_actions}
         attempted = successful = rollouts = plies = assignment_nodes = 0
         deadline = (
@@ -955,6 +957,7 @@ class PIMCSearchPolicy:
                     random.Random(rollout_seeds[action]),
                 )
                 totals[action] += value
+                squared_totals[action] += value * value
                 visits[action] += 1
                 rollouts += 1
                 plies += used_plies
@@ -975,12 +978,31 @@ class PIMCSearchPolicy:
             used_fallback = False
 
         values = tuple(
+            (action, totals[action] / visits[action], visits[action])
+            for action in card_actions
+            if visits[action]
+        )
+        uncertainty = tuple(
             (
                 action,
-                totals[action] / visits[action] if visits[action] else float("-inf"),
-                visits[action],
+                (
+                    math.sqrt(
+                        max(
+                            0.0,
+                            (
+                                squared_totals[action]
+                                - totals[action] * totals[action] / visits[action]
+                            )
+                            / (visits[action] - 1),
+                        )
+                        / visits[action]
+                    )
+                    if visits[action] > 1
+                    else None
+                ),
             )
             for action in card_actions
+            if visits[action]
         )
         self.last_stats = SearchStats(
             attempted_determinizations=attempted,
@@ -991,6 +1013,7 @@ class PIMCSearchPolicy:
             elapsed_seconds=time.perf_counter() - started,
             used_fallback=used_fallback,
             action_values=values,
+            action_uncertainty=uncertainty,
         )
         if chosen not in legal:
             raise RuntimeError("search selected an action outside the legal mask")

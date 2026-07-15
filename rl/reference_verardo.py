@@ -344,6 +344,7 @@ def verardo_tournament_config(
         modes=(None,),
         swap_teams=True,
         enable_bidding=True,
+        trump_only_bidding=True,
         enable_weis=False,
         enable_stock=False,
         profile=VERARDO_V1_PROFILE,

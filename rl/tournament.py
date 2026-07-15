@@ -43,6 +43,7 @@ class TournamentConfig:
     starters: tuple[int, ...] = (0, 1, 2, 3)
     swap_teams: bool = True
     enable_bidding: bool = False
+    trump_only_bidding: bool = False
     enable_weis: bool = True
     enable_stock: bool = True
     profile: RulesetConfig | None = None
@@ -60,6 +61,11 @@ class TournamentConfig:
             raise ValueError("starters must contain only seats 0..3")
         if not self.modes:
             raise ValueError("modes must not be empty")
+
+        if not isinstance(self.trump_only_bidding, bool):
+            raise ValueError("trump_only_bidding must be a boolean")
+        if self.trump_only_bidding and not self.enable_bidding:
+            raise ValueError("trump_only_bidding requires enable_bidding")
 
         if self.enable_bidding:
             if self.modes != (None,):
@@ -303,6 +309,7 @@ def run_episode(
         seed=spec.deal_seed,
         profile=config.profile,
         enable_bidding=config.enable_bidding,
+        trump_only_bidding=config.trump_only_bidding,
         enable_weis=config.enable_weis,
         enable_stock=config.enable_stock,
         mode=spec.mode,

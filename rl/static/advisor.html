@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071d18">
+  <title>Schieber Table Advisor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f3ecd9;
+      --muted: #aeb9ad;
+      --felt: #0d2d25;
+      --felt-deep: #071d18;
+      --panel: #143c31;
+      --line: rgba(243, 236, 217, .16);
+      --red: #eb5541;
+      --gold: #e5b84a;
+      --mint: #76c6a2;
+      --paper: #f4ecd8;
+      --paper-ink: #1a2620;
+      --shadow: 0 24px 80px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 8%, rgba(118, 198, 162, .12), transparent 30rem),
+        repeating-linear-gradient(115deg, transparent 0 3px, rgba(255,255,255,.012) 3px 4px),
+        var(--felt-deep);
+      font-family: "Avenir Next", "Gill Sans", sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { touch-action: manipulation; -webkit-tap-highlight-color: rgba(229, 184, 74, .24); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 2px;
+    }
+
+    .shell { max-width: 1440px; margin: 0 auto; padding: 28px; }
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding: 10px 0 26px;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow, .section-kicker, label, th {
+      text-transform: uppercase;
+      letter-spacing: .13em;
+      font-size: .72rem;
+      font-weight: 500;
+    }
+    .eyebrow { color: var(--mint); }
+    h1 {
+      max-width: 820px;
+      margin: 6px 0 0;
+      font-family: Baskerville, "Iowan Old Style", serif;
+      font-size: clamp(2.5rem, 7vw, 5.7rem);
+      line-height: .88;
+      font-weight: 400;
+      letter-spacing: -.045em;
+    }
+    .model-stamp {
+      max-width: 330px;
+      text-align: right;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .72rem;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(330px, .82fr) minmax(440px, 1.18fr);
+      gap: 28px;
+      padding-top: 28px;
+      align-items: start;
+    }
+    .entry, .advice {
+      border-top: 4px solid var(--ink);
+      padding-top: 18px;
+    }
+    .entry { position: sticky; top: 0; }
+    h2 {
+      margin: 0 0 16px;
+      font-family: Baskerville, "Iowan Old Style", serif;
+      font-weight: 400;
+      font-size: 1.7rem;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .field { display: grid; gap: 6px; }
+    label { color: var(--muted); }
+    input, select, textarea {
+      width: 100%;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.045);
+      border-radius: 0;
+      padding: 10px 11px;
+    }
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .78rem;
+      line-height: 1.5;
+    }
+    .check-row { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 0; }
+    .check-row label { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; }
+    .check-row input { width: auto; accent-color: var(--red); }
+    .announcement-panel {
+      display: grid;
+      gap: 8px;
+      padding: 13px 0 3px;
+      border-top: 1px solid var(--line);
+    }
+    .announcement-panel[hidden] { display: none; }
+
+    .deck-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin: 20px 0 9px;
+    }
+    .hand-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: end; }
+    .hand-count {
+      color: var(--gold);
+      font-family: "SFMono-Regular", monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .demo-badge {
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 2px 6px;
+      font-size: .64rem;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .deck { display: grid; gap: 12px; }
+    .suit-group { display: grid; gap: 5px; }
+    .suit-label {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      color: var(--muted);
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .suit-row {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(28px, 1fr));
+      gap: 5px;
+      align-items: stretch;
+    }
+    .suit-mark {
+      color: currentColor;
+      font-size: 1.15rem;
+    }
+    .card-pick {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      transition: transform .15s ease, background .15s ease, color .15s ease;
+    }
+    @media (hover: hover) {
+      .card-pick:hover { transform: translateY(-2px); background: rgba(255,255,255,.06); }
+    }
+    .card-pick.selected {
+      color: var(--paper-ink);
+      background: var(--paper);
+      border-color: var(--paper);
+      box-shadow: 0 4px 0 var(--red);
+    }
+    .card-pick.red:not(.selected) { color: #ff8b79; }
+
+    .history { display: grid; gap: 10px; margin-top: 20px; }
+    .hint { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+    .actions { display: flex; gap: 9px; margin-top: 16px; }
+    .primary, .secondary {
+      border: 0;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .primary { background: var(--red); color: #fff8ef; flex: 1; }
+    .secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .primary:disabled, .secondary:disabled { opacity: .6; cursor: wait; }
+    .primary:hover:not(:disabled) { background: #f0634e; }
+    .secondary:hover:not(:disabled) { background: rgba(255,255,255,.07); }
+
+    .empty {
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      text-align: center;
+      padding: 28px;
+    }
+    .empty strong {
+      display: block;
+      color: var(--ink);
+      font-family: Baskerville, serif;
+      font-size: 2rem;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+    .error {
+      margin: 0 0 14px;
+      padding: 12px;
+      border-left: 4px solid var(--red);
+      color: #ffd5cd;
+      background: rgba(235, 85, 65, .1);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .recommendation {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding: 24px;
+      color: var(--paper-ink);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+    .recommendation:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+    .recommendation .section-kicker { color: #56645b; }
+    .selected-card {
+      margin: 3px 0 0;
+      font-family: Baskerville, serif;
+      font-size: clamp(2.1rem, 5vw, 4.7rem);
+      line-height: .95;
+      font-weight: 400;
+    }
+    .decision-meta {
+      text-align: right;
+      font-family: "SFMono-Regular", monospace;
+      font-size: .75rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .override { color: #9d271b; font-weight: 500; }
+
+    .ranking-wrap { overflow-x: auto; overscroll-behavior-inline: contain; }
+    table { width: 100%; border-collapse: collapse; min-width: 620px; }
+    th { color: var(--muted); text-align: left; padding: 0 10px 9px; }
+    td { border-top: 1px solid var(--line); padding: 13px 10px; vertical-align: middle; }
+    tr.chosen td { background: rgba(118, 198, 162, .09); }
+    .rank { color: var(--muted); width: 35px; }
+    .card-name { font-family: Baskerville, serif; font-size: 1.15rem; white-space: nowrap; }
+    .number {
+      font-family: "SFMono-Regular", monospace;
+      font-size: .8rem;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .probability { min-width: 130px; }
+    .bar { height: 5px; background: rgba(255,255,255,.08); margin-top: 5px; }
+    .bar > span { display: block; height: 100%; background: var(--mint); }
+
+    .qualifications { margin-top: 38px; border-top: 1px solid var(--line); padding-top: 22px; }
+    .qual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .qual-row { padding: 15px; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
+    .qual-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .qual-name { margin: 0; font: 500 1rem/1.2 "Avenir Next", "Gill Sans", sans-serif; }
+    .qualification-state, .gate-state {
+      font-family: "SFMono-Regular", monospace;
+      font-size: .68rem;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .pass { color: var(--mint); }
+    .fail { color: #ff8b79; }
+    .gate-list { display: grid; gap: 0; margin: 12px 0 0; padding: 0; list-style: none; }
+    .gate-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: baseline;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+    .gate-copy { min-width: 0; }
+    .gate-label { display: block; font-size: .78rem; }
+    .gate-rule {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font: .7rem/1.4 "SFMono-Regular", monospace;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .footer-note { margin-top: 30px; color: var(--muted); font-size: .74rem; }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .entry { position: static; }
+      .masthead { grid-template-columns: 1fr; }
+      .model-stamp { text-align: left; }
+    }
+    @media (max-width: 560px) {
+      .shell { padding: 18px 14px; }
+      .field-grid, .qual-grid { grid-template-columns: 1fr; }
+      .suit-row { grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 5px; }
+      .card-pick { min-height: 44px; padding: 4px; font-size: .8rem; }
+      .recommendation { grid-template-columns: 1fr; }
+      .decision-meta { text-align: left; }
+      .actions { flex-wrap: wrap; }
+      .actions button { min-height: 44px; flex: 1 1 130px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card-pick { transition: none; }
+      .card-pick:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <div class="eyebrow">Swiss Schieber · public information only</div>
+        <h1>Read the table.<br>Choose the card.</h1>
+      </div>
+      <div class="model-stamp" id="model-stamp" aria-live="polite">Connecting to local model…</div>
+    </header>
+
+    <div class="layout">
+      <section class="entry" aria-labelledby="state-title">
+        <div class="section-kicker">01 / Table state</div>
+        <h2 id="state-title">What can you see?</h2>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="mode">Contract</label>
+            <select id="mode" name="mode" autocomplete="off">
+              <option value="trump">Trump</option>
+              <option value="obeabe">Obeabe</option>
+              <option value="uneufe">Uneufe</option>
+            </select>
+          </div>
+          <div class="field" id="trump-field">
+            <label for="trump">Trump suit</label>
+            <select id="trump" name="trump_suit" autocomplete="off">
+              <option value="schellen">Schellen</option>
+              <option value="rosen">Rosen</option>
+              <option value="schilten">Schilten</option>
+              <option value="eicheln">Eicheln</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="leader">Current leader</label>
+            <select id="leader" name="leader" autocomplete="off">
+              <option value="0">Self</option>
+              <option value="1">Left</option>
+              <option value="2">Partner</option>
+              <option value="3">Right</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bid-starter">Bidding starter</label>
+            <select id="bid-starter" name="bid_starter" autocomplete="off">
+              <option value="0">Self</option>
+              <option value="1">Left</option>
+              <option value="2">Partner</option>
+              <option value="3">Right</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bid-chooser">Contract chooser</label>
+            <select id="bid-chooser" name="bid_chooser" autocomplete="off">
+              <option value="0">Self</option>
+              <option value="1">Left</option>
+              <option value="2">Partner</option>
+              <option value="3">Right</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="our-score">Our points</label>
+            <input id="our-score" name="our_score" type="number" inputmode="numeric" min="0" value="0" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="their-score">Opponent points</label>
+            <input id="their-score" name="their_score" type="number" inputmode="numeric" min="0" value="0" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="check-row">
+          <label><input id="pushed" name="bid_pushed" type="checkbox"> Contract was pushed</label>
+          <label><input id="announcements" name="announcement_enabled" type="checkbox" checked disabled> Weis enabled by model</label>
+        </div>
+        <div class="announcement-panel" id="announcement-fields" role="group" aria-labelledby="announcement-title">
+          <div class="section-kicker" id="announcement-title">Public Weis status by seat</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="announcement-0">Self</label>
+              <select id="announcement-0" name="announcement_self" autocomplete="off">
+                <option value="undecided">Undecided</option>
+                <option value="pass" selected>Pass</option>
+                <option value="announce">Announced</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="announcement-1">Left</label>
+              <select id="announcement-1" name="announcement_left" autocomplete="off">
+                <option value="undecided">Undecided</option>
+                <option value="pass" selected>Pass</option>
+                <option value="announce">Announced</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="announcement-2">Partner</label>
+              <select id="announcement-2" name="announcement_partner" autocomplete="off">
+                <option value="undecided">Undecided</option>
+                <option value="pass" selected>Pass</option>
+                <option value="announce">Announced</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="announcement-3">Right</label>
+              <select id="announcement-3" name="announcement_right" autocomplete="off">
+                <option value="undecided">Undecided</option>
+                <option value="pass" selected>Pass</option>
+                <option value="announce">Announced</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="deck-heading">
+          <div class="section-kicker">Your hand</div>
+          <div class="hand-meta">
+            <span class="demo-badge" id="demo-badge" hidden>Example state</span>
+            <span class="hand-count" id="hand-count" aria-live="polite">0 selected</span>
+          </div>
+        </div>
+        <div class="deck" id="deck" role="group" aria-label="Select cards in your hand"></div>
+
+        <div class="history">
+          <div class="field">
+            <label for="completed">Completed tricks · JSON</label>
+            <textarea id="completed" name="completed_tricks" autocomplete="off" spellcheck="false">[]</textarea>
+          </div>
+          <div class="field">
+            <label for="current">Current trick · JSON</label>
+            <textarea id="current" name="current_trick" autocomplete="off" spellcheck="false">[]</textarea>
+          </div>
+          <p class="hint">Relative seats: 0 self, 1 left, 2 partner, 3 right. A play is <code>{"player":1,"card":"rosen:A"}</code>. The next player must be self.</p>
+        </div>
+
+        <div class="actions">
+          <button class="secondary" id="example" type="button">Load example</button>
+          <button class="primary" id="rank" type="button">Rank legal cards</button>
+        </div>
+      </section>
+
+      <section class="advice" id="advice" aria-labelledby="advice-title" aria-busy="false">
+        <div class="section-kicker">02 / Qualified advice</div>
+        <h2 id="advice-title">Model + imperfect-information search</h2>
+        <p class="sr-only" id="advice-status" aria-live="polite" aria-atomic="true">Ready for a table state.</p>
+        <div id="error" class="error" hidden role="alert" tabindex="-1"></div>
+        <div id="empty" class="empty">
+          <div><strong id="empty-title">Enter the public table state.</strong><span id="empty-copy">Select your hand and record only what everyone at the table has seen.</span></div>
+        </div>
+        <div id="results" hidden>
+          <div class="recommendation" id="recommendation" tabindex="-1">
+            <div>
+              <div class="section-kicker">Recommended play</div>
+              <div class="selected-card" id="selected-card"></div>
+            </div>
+            <div class="decision-meta" id="decision-meta"></div>
+          </div>
+          <div class="ranking-wrap">
+            <table>
+              <caption class="sr-only">Legal cards ranked by the model and imperfect-information search</caption>
+              <thead>
+                <tr><th scope="col">#</th><th scope="col">Legal card</th><th scope="col">Expected margin</th><th scope="col">Uncertainty</th><th scope="col">Neural prior</th><th scope="col">Worlds</th></tr>
+              </thead>
+              <tbody id="ranking"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <section class="qualifications" aria-labelledby="qualification-title">
+          <div class="section-kicker">03 / Evidence</div>
+          <h2 id="qualification-title">Formal qualification</h2>
+          <div class="qual-grid" id="qual-grid"><p class="hint">Add <code>--report</code> paths when starting the server to show qualification evidence.</p></div>
+        </section>
+      </section>
+    </div>
+    <p class="footer-note">Advice is computed locally. The actor receives the canonical public observation; sampled hands are consistent possibilities, never the real hidden hands.</p>
+  </main>
+
+  <script>
+    const suits = [
+      {id: 'schellen', name: 'Schellen', mark: '◉', red: true},
+      {id: 'rosen', name: 'Rosen', mark: '✿', red: true},
+      {id: 'schilten', name: 'Schilten', mark: '▰', red: false},
+      {id: 'eicheln', name: 'Eicheln', mark: '♣', red: false}
+    ];
+    const ranks = ['6','7','8','9','10','J','Q','K','A'];
+    const selected = new Set();
+    const el = id => document.getElementById(id);
+    const countFormat = new Intl.NumberFormat(undefined, {maximumFractionDigits: 0});
+    const decimalFormat = new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    });
+    const signedDecimalFormat = new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 2,
+      signDisplay: 'always'
+    });
+    const percentFormat = new Intl.NumberFormat(undefined, {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    let stateRevision = 0;
+    let adviceController = null;
+    let exampleController = null;
+    let modelEnvironment = {bidding_enabled: true, announcement_enabled: true};
+
+    function cardLabel(code) {
+      const [suit, rank] = code.split(':');
+      const info = suits.find(item => item.id === suit);
+      return `${info ? info.name : suit} ${rank}`;
+    }
+
+    function buildDeck() {
+      const deck = el('deck');
+      deck.textContent = '';
+      suits.forEach(suit => {
+        const group = document.createElement('div');
+        group.className = 'suit-group';
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-labelledby', `suit-${suit.id}`);
+        const label = document.createElement('div');
+        label.className = 'suit-label';
+        label.id = `suit-${suit.id}`;
+        const mark = document.createElement('span');
+        mark.className = 'suit-mark';
+        mark.textContent = suit.mark;
+        mark.setAttribute('aria-hidden', 'true');
+        const name = document.createElement('span');
+        name.textContent = suit.name;
+        label.append(mark, name);
+        const row = document.createElement('div');
+        row.className = 'suit-row';
+        ranks.forEach(rank => {
+          const code = `${suit.id}:${rank}`;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `card-pick${suit.red ? ' red' : ''}`;
+          button.textContent = rank;
+          button.dataset.card = code;
+          button.setAttribute('aria-pressed', 'false');
+          button.setAttribute('aria-label', `${suit.name} ${rank}`);
+          button.addEventListener('click', () => toggleCard(code, button));
+          row.appendChild(button);
+        });
+        group.append(label, row);
+        deck.appendChild(group);
+      });
+    }
+
+    function toggleCard(code, button) {
+      if (selected.has(code)) selected.delete(code); else selected.add(code);
+      const active = selected.has(code);
+      button.classList.toggle('selected', active);
+      button.setAttribute('aria-pressed', String(active));
+      el('hand-count').textContent = `${selected.size} selected`;
+      stateWasEdited();
+    }
+
+    function setHand(cards) {
+      selected.clear();
+      cards.forEach(card => selected.add(card));
+      document.querySelectorAll('.card-pick').forEach(button => {
+        const active = selected.has(button.dataset.card);
+        button.classList.toggle('selected', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      el('hand-count').textContent = `${selected.size} selected`;
+    }
+
+    function setEmptyState(title, copy) {
+      el('empty-title').textContent = title;
+      el('empty-copy').textContent = copy;
+      el('empty').hidden = false;
+      el('results').hidden = true;
+    }
+
+    function invalidateAdvice(title, copy, announcement) {
+      setEmptyState(title, copy);
+      if (announcement) el('advice-status').textContent = announcement;
+    }
+
+    function stateWasEdited() {
+      stateRevision += 1;
+      el('demo-badge').hidden = true;
+      if (adviceController) adviceController.abort();
+      if (exampleController) exampleController.abort();
+      clearError();
+      invalidateAdvice(
+        'Table state changed.',
+        'Rank the legal cards again to calculate advice for this exact state.',
+        'Table state changed. Existing advice was cleared.'
+      );
+    }
+
+    function parseJsonField(id) {
+      const value = JSON.parse(el(id).value || '[]');
+      if (!Array.isArray(value)) throw new Error(`${id} must be a JSON array`);
+      return value;
+    }
+
+    function statePayload() {
+      const mode = el('mode').value;
+      return {
+        hand: Array.from(selected),
+        completed_tricks: parseJsonField('completed'),
+        current_trick: parseJsonField('current'),
+        mode,
+        trump_suit: mode === 'trump' ? el('trump').value : null,
+        leader: Number(el('leader').value),
+        team_points: [Number(el('our-score').value), Number(el('their-score').value)],
+        bidding_enabled: modelEnvironment.bidding_enabled,
+        bid_starter: modelEnvironment.bidding_enabled
+          ? Number(el('bid-starter').value)
+          : null,
+        bid_chooser: modelEnvironment.bidding_enabled
+          ? Number(el('bid-chooser').value)
+          : null,
+        bid_pushed: modelEnvironment.bidding_enabled && el('pushed').checked,
+        announcement_enabled: modelEnvironment.announcement_enabled,
+        announcement_status: modelEnvironment.announcement_enabled
+          ? [0, 1, 2, 3].map(index => el(`announcement-${index}`).value)
+          : ['pass', 'pass', 'pass', 'pass']
+      };
+    }
+
+    function showError(message, focus = true, statusPrefix = 'Advice unavailable.') {
+      el('error').textContent = message;
+      el('error').hidden = false;
+      el('advice-status').textContent = `${statusPrefix} ${message}`;
+      if (focus) el('error').focus();
+    }
+
+    function clearError() {
+      el('error').hidden = true;
+      el('error').textContent = '';
+    }
+
+    async function readJsonResponse(response, label) {
+      const text = await response.text();
+      let payload;
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch (_) {
+        throw new Error(
+          `${label} returned HTTP ${response.status} without valid JSON. ` +
+          'Restart the local advisor server and try again.'
+        );
+      }
+      if (!response.ok) {
+        const detail = payload && typeof payload.error === 'string'
+          ? payload.error
+          : `${label} failed with HTTP ${response.status}`;
+        const nextStep = label === 'Advice request'
+          ? 'Correct the table state or restart the local server.'
+          : 'Restart the local advisor server and try again.';
+        throw new Error(`${detail}. ${nextStep}`);
+      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error(`${label} returned an invalid response. Restart the local advisor server.`);
+      }
+      return payload;
+    }
+
+    function setAdviceBusy(busy) {
+      el('advice').setAttribute('aria-busy', String(busy));
+      const button = el('rank');
+      button.disabled = busy;
+      button.textContent = busy ? 'Sampling possible hands…' : 'Rank legal cards';
+    }
+
+    function renderAdvice(advice) {
+      if (typeof advice.selected_card !== 'string' || !Array.isArray(advice.actions)) {
+        throw new Error('Advisor response is missing the selected card or legal-card ranking');
+      }
+      el('empty').hidden = true;
+      el('results').hidden = false;
+      el('selected-card').textContent = cardLabel(advice.selected_card);
+      const meta = el('decision-meta');
+      meta.textContent = '';
+      if (advice.neural_override) {
+        const override = document.createElement('span');
+        override.className = 'override';
+        override.textContent = 'neural tie-break';
+        meta.append(override, document.createElement('br'));
+      }
+      const milliseconds = Number(advice.search_seconds) * 1000;
+      meta.append(
+        `${decimalFormat.format(milliseconds)} ms`,
+        document.createElement('br'),
+        `${countFormat.format(advice.successful_determinizations)}/${countFormat.format(advice.attempted_determinizations)} sampled worlds`
+      );
+      const body = el('ranking');
+      body.textContent = '';
+      advice.actions.forEach((action, index) => {
+        const row = document.createElement('tr');
+        if (action.selected) row.className = 'chosen';
+        const marginValue = Number(action.expected_margin);
+        const errorValue = Number(action.standard_error);
+        const probabilityValue = Number(action.neural_probability);
+        const margin = action.expected_margin == null || !Number.isFinite(marginValue)
+          ? 'fallback'
+          : signedDecimalFormat.format(marginValue);
+        const uncertainty = action.standard_error == null || !Number.isFinite(errorValue)
+          ? '—'
+          : `±${signedDecimalFormat.format(Math.abs(errorValue)).replace('+', '')}`;
+        const probability = Number.isFinite(probabilityValue)
+          ? Math.max(0, Math.min(1, probabilityValue))
+          : 0;
+        const cells = [
+          countFormat.format(index + 1),
+          cardLabel(action.card),
+          margin,
+          uncertainty,
+          percentFormat.format(probability),
+          countFormat.format(action.determinizations)
+        ];
+        cells.forEach((value, cellIndex) => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          if (cellIndex === 0) cell.className = 'rank';
+          if (cellIndex === 1) cell.className = 'card-name';
+          if (cellIndex >= 2) cell.classList.add('number');
+          if (cellIndex === 4) {
+            cell.classList.add('probability');
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            const fill = document.createElement('span');
+            fill.style.width = `${probability * 100}%`;
+            fill.setAttribute('aria-hidden', 'true');
+            bar.appendChild(fill);
+            cell.appendChild(bar);
+          }
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      });
+      const recommendation = el('recommendation');
+      el('advice-status').textContent =
+        `Recommended play: ${cardLabel(advice.selected_card)}. ` +
+        `${advice.actions.length} legal cards ranked.`;
+      recommendation.focus();
+    }
+
+    async function rankCards() {
+      clearError();
+      let state;
+      try {
+        state = statePayload();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The table state is invalid';
+        showError(`${message}. Correct the table state and try again.`);
+        return;
+      }
+      if (adviceController) adviceController.abort();
+      const controller = new AbortController();
+      adviceController = controller;
+      const requestRevision = stateRevision;
+      setAdviceBusy(true);
+      el('advice-status').textContent = 'Sampling possible hidden hands and ranking legal cards…';
+      try {
+        const response = await fetch('/api/advice', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(state),
+          signal: controller.signal
+        });
+        const payload = await readJsonResponse(response, 'Advice request');
+        if (controller.signal.aborted || requestRevision !== stateRevision) return;
+        renderAdvice(payload);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (requestRevision !== stateRevision) return;
+        const message = error instanceof Error ? error.message : 'Advice request failed';
+        setEmptyState('Advice unavailable.', 'Correct the table state, then try the request again.');
+        showError(message);
+      } finally {
+        if (adviceController === controller) {
+          adviceController = null;
+          setAdviceBusy(false);
+        }
+      }
+    }
+
+    async function loadExample() {
+      clearError();
+      if (exampleController) exampleController.abort();
+      if (adviceController) adviceController.abort();
+      stateRevision += 1;
+      el('demo-badge').hidden = true;
+      invalidateAdvice(
+        'Loading example state…',
+        'The example remains clearly marked until you edit any field.',
+        'Loading the example table state…'
+      );
+      const requestRevision = stateRevision;
+      const controller = new AbortController();
+      exampleController = controller;
+      const button = el('example');
+      button.disabled = true;
+      button.textContent = 'Loading example…';
+      try {
+        const response = await fetch('/api/example', {signal: controller.signal});
+        const state = await readJsonResponse(response, 'Example request');
+        if (controller.signal.aborted || requestRevision !== stateRevision) return;
+        setHand(state.hand);
+        el('mode').value = state.mode;
+        el('trump').value = state.trump_suit || 'schellen';
+        el('leader').value = String(state.leader);
+        el('bid-starter').value = String(state.bid_starter ?? 0);
+        el('bid-chooser').value = String(state.bid_chooser);
+        el('our-score').value = state.team_points[0];
+        el('their-score').value = state.team_points[1];
+        el('pushed').checked = state.bid_pushed;
+        el('announcements').checked = state.announcement_enabled;
+        const statuses = Array.isArray(state.announcement_status)
+          ? state.announcement_status
+          : ['pass', 'pass', 'pass', 'pass'];
+        statuses.forEach((status, index) => {
+          el(`announcement-${index}`).value = status;
+        });
+        el('completed').value = JSON.stringify(state.completed_tricks, null, 2);
+        el('current').value = JSON.stringify(state.current_trick, null, 2);
+        updateContract();
+        updateAnnouncements();
+        stateRevision += 1;
+        el('demo-badge').hidden = false;
+        invalidateAdvice(
+          'Example state loaded.',
+          'Review the marked example, then rank its legal cards or edit it for your game.',
+          'Example table state loaded. It is marked as example data.'
+        );
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        const message = error instanceof Error ? error.message : 'Example request failed';
+        setEmptyState('Example unavailable.', 'Enter your public table state manually or try again.');
+        showError(message, true, 'Example unavailable.');
+      } finally {
+        if (exampleController === controller) {
+          exampleController = null;
+          button.disabled = false;
+          button.textContent = 'Load example';
+        }
+      }
+    }
+
+    function gate(label, value, threshold, formatter) {
+      if (value == null || threshold == null) return null;
+      const numericValue = Number(value);
+      const numericThreshold = Number(threshold);
+      if (!Number.isFinite(numericValue) || !Number.isFinite(numericThreshold)) return null;
+      return {
+        label,
+        value: numericValue,
+        threshold: numericThreshold,
+        passes: numericValue >= numericThreshold,
+        formatter
+      };
+    }
+
+    function qualificationGates(item) {
+      const thresholds = item.thresholds || {};
+      return [
+        gate('Games', item.games, thresholds.minimum_games, countFormat),
+        gate('Paired deals', item.pairs, thresholds.minimum_pairs, countFormat),
+        gate('Win rate', item.win_rate, thresholds.minimum_win_rate, percentFormat),
+        gate('Win-rate Wilson low', item.win_rate_low, thresholds.minimum_wilson_low, percentFormat),
+        gate('Paired win rate', item.paired_win_rate, thresholds.minimum_paired_win_rate, percentFormat),
+        gate(
+          'Paired Wilson low',
+          item.paired_win_rate_low,
+          thresholds.minimum_paired_wilson_low,
+          percentFormat
+        ),
+        gate(
+          'Average point difference',
+          item.point_difference,
+          thresholds.minimum_average_point_difference,
+          signedDecimalFormat
+        )
+      ].filter(Boolean);
+    }
+
+    function renderQualifications(items) {
+      const grid = el('qual-grid');
+      grid.textContent = '';
+      if (!Array.isArray(items) || !items.length) {
+        const empty = document.createElement('p');
+        empty.className = 'hint';
+        empty.textContent = 'Add --report paths when starting the server to show qualification evidence.';
+        grid.appendChild(empty);
+        return;
+      }
+      items.forEach(item => {
+        const gates = qualificationGates(item);
+        const passedGates = gates.filter(itemGate => itemGate.passes).length;
+        const section = document.createElement('section');
+        section.className = 'qual-row';
+        const top = document.createElement('div');
+        top.className = 'qual-top';
+        const name = document.createElement('h3');
+        name.className = 'qual-name';
+        name.textContent = item.opponent.replace('verardo-random', 'external random').replace('verardo', 'reference');
+        const status = document.createElement('span');
+        status.className = `qualification-state ${item.qualified ? 'pass' : 'fail'}`;
+        status.textContent = item.qualified ? 'Qualified · Pass' : 'Not qualified · Fail';
+        top.append(name, status);
+        const summary = document.createElement('p');
+        summary.className = 'hint';
+        summary.textContent = `${passedGates}/${gates.length} active formal gates pass`;
+        const list = document.createElement('ul');
+        list.className = 'gate-list';
+        gates.forEach(itemGate => {
+          const row = document.createElement('li');
+          row.className = 'gate-row';
+          const copy = document.createElement('div');
+          copy.className = 'gate-copy';
+          const label = document.createElement('span');
+          label.className = 'gate-label';
+          label.textContent = itemGate.label;
+          const rule = document.createElement('span');
+          rule.className = 'gate-rule';
+          rule.textContent =
+            `${itemGate.formatter.format(itemGate.value)} observed · ` +
+            `${itemGate.formatter.format(itemGate.threshold)} minimum`;
+          copy.append(label, rule);
+          const result = document.createElement('span');
+          result.className = `gate-state ${itemGate.passes ? 'pass' : 'fail'}`;
+          result.textContent = itemGate.passes ? 'Pass' : 'Fail';
+          row.append(copy, result);
+          list.appendChild(row);
+        });
+        section.append(top, summary, list);
+        grid.appendChild(section);
+      });
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/status');
+        const status = await readJsonResponse(response, 'Status request');
+        applyModelEnvironment(status.environment || {});
+        const hash = status.model_sha256 ? status.model_sha256.slice(0, 12) : 'unhashed';
+        el('model-stamp').textContent = `${status.profile} · model ${hash} · ${status.search.determinizations} worlds · ${status.search.opponent_rollout_policy} rollout`;
+        renderQualifications(status.qualification || []);
+      } catch (error) {
+        el('model-stamp').textContent = 'Local model unavailable';
+      }
+    }
+
+    function updateContract() {
+      el('trump-field').hidden = el('mode').value !== 'trump';
+    }
+
+    function updateAnnouncements() {
+      el('announcement-fields').hidden = !modelEnvironment.announcement_enabled;
+    }
+
+    function applyModelEnvironment(environment) {
+      modelEnvironment = {
+        bidding_enabled: environment.bidding_enabled !== false,
+        announcement_enabled: environment.announcement_enabled !== false
+      };
+      el('announcements').checked = modelEnvironment.announcement_enabled;
+      ['bid-starter', 'bid-chooser', 'pushed'].forEach(id => {
+        el(id).disabled = !modelEnvironment.bidding_enabled;
+      });
+      [0, 1, 2, 3].forEach(index => {
+        el(`announcement-${index}`).disabled = !modelEnvironment.announcement_enabled;
+      });
+      updateAnnouncements();
+    }
+
+    function handleStateControl(event) {
+      if (event.target.id === 'mode') updateContract();
+      if (event.target.id === 'announcements') updateAnnouncements();
+      stateWasEdited();
+    }
+
+    buildDeck();
+    document.querySelectorAll('.entry select, .entry input[type="checkbox"]').forEach(control => {
+      control.addEventListener('change', handleStateControl);
+    });
+    document.querySelectorAll('.entry textarea, .entry input[type="number"]').forEach(control => {
+      control.addEventListener('input', handleStateControl);
+    });
+    el('rank').addEventListener('click', rankCards);
+    el('example').addEventListener('click', loadExample);
+    updateContract();
+    updateAnnouncements();
+    loadStatus();
+  </script>
+</body>
+</html>

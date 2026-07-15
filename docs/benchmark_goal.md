@@ -26,9 +26,9 @@ Published results are 84.1% versus random with +67.1 average raw point
 difference and 63.4% versus its deterministic rule-based agent with +29.1 over
 1,000 games.  The published tournament fixes the evaluated policy to Team 0,
 does not use paired duplicate deals or confidence intervals, does not ship the
-referenced checkpoint, and declares no software license. Therefore a direct
-checkpoint head-to-head is not currently reproducible and its source must not be
-copied into this project. The reproducible comparison available today is a
+referenced checkpoint. It declares MIT in `pyproject.toml` but has no standalone
+license file. Therefore a direct checkpoint head-to-head is not currently
+reproducible. The reproducible comparison available today is a
 clean-room proxy: an independently implemented, behavior-compatible baseline
 derived from the published strategy description and run on a matched rules
 profile. Clearing that proxy means exceeding the published headline metrics
@@ -94,3 +94,24 @@ Passing the existing tests, beating the lowest-action policy, using fixed seats,
 reporting an unpaired point estimate, running a toy training job, or rendering a
 mock dashboard does not satisfy this goal.  Visualization work starts only after
 a saved model clears both the full-project and matched external gates.
+
+## Achieved qualification
+
+The final clean reports were generated from commit `00bab39` with no working-
+tree changes.  Each row contains 4,000 games and 2,000 independently shuffled,
+team-swapped pairs:
+
+| Profile/model | Opponent | Game wins | Game Wilson low | Pair wins | Pair Wilson low | Mean difference |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Full standard (`513e96d90014…`) | random | 86.60% | 85.51% | 96.15% | 95.21% | +211.59 |
+| Full standard (`513e96d90014…`) | strategic | 63.25% | 61.74% | 81.00% | 79.22% | +69.54 |
+| `verardo-v1` (`7e1334b6d922…`) | random | 87.88% | 86.83% | 97.75% | 97.00% | +77.81 |
+| `verardo-v1` (`7e1334b6d922…`) | clean-room reference | 70.05% | 68.61% | 89.10% | 87.66% | +39.19 |
+
+All raw, paired, confidence-bound, point-difference, sample-count, privacy,
+manifest, hash, and clean-provenance checks pass.  The two profiles use
+different checkpoints and policy settings; advisor evidence is therefore bound
+to an exact policy identity rather than combining the four rows under one live
+model.  The external result exceeds the published headline thresholds under
+the stricter clean-room proxy protocol, but it remains intentionally described
+as a proxy result—not a direct victory over the unavailable upstream checkpoint.

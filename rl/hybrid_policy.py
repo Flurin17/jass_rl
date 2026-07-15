@@ -102,7 +102,7 @@ def _model_shape(model: object) -> tuple[int, ...]:
     return tuple(getattr(getattr(model, "observation_space", None), "shape", ()))
 
 
-def _masked_probabilities(
+def masked_action_probabilities(
     model: object,
     observation: np.ndarray,
     action_mask: np.ndarray,
@@ -223,7 +223,7 @@ class NeuralGuidedPIMCPolicy:
             raise RuntimeError("search returned an action outside the legal mask")
         bidding_decision = all(action in _BIDDING_ACTIONS for action in legal)
         if self.config.use_neural_bidding and bidding_decision and len(legal) > 1:
-            probabilities = _masked_probabilities(self.model, observation, action_mask)
+            probabilities = masked_action_probabilities(self.model, observation, action_mask)
             neural_action = max(legal, key=lambda action: (probabilities[action], -action))
             self.stats = replace(
                 stats,
@@ -253,7 +253,7 @@ class NeuralGuidedPIMCPolicy:
             )
             return search_action
 
-        probabilities = _masked_probabilities(self.model, observation, action_mask)
+        probabilities = masked_action_probabilities(self.model, observation, action_mask)
         neural_action = max(legal, key=lambda action: (probabilities[action], -action))
         neural_probability = float(probabilities[neural_action])
         stats = replace(stats, card_decisions=stats.card_decisions + 1)
@@ -308,4 +308,5 @@ __all__ = [
     "HybridStats",
     "NeuralGuidanceConfig",
     "NeuralGuidedPIMCPolicy",
+    "masked_action_probabilities",
 ]

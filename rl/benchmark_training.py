@@ -21,7 +21,7 @@ from pathlib import Path
 
 from core.cards import MODE_TRUMP
 from rl.ctde_policy import CTDEMaskableActorCriticPolicy
-from rl.train_selfplay import TrainConfig, _make_vec_env
+from rl.train_selfplay import DEFAULT_CPU_THREADS, TrainConfig, _make_vec_env
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ class BenchmarkConfig:
     rollouts: int = 2
     net_arch: tuple[int, ...] = (128, 128)
     seed: int = 0
-    cpu_threads: int = 4
+    cpu_threads: int = DEFAULT_CPU_THREADS
 
     @property
     def total_timesteps(self) -> int:
@@ -117,6 +117,7 @@ def _training_config(config: BenchmarkConfig, device: str) -> TrainConfig:
         n_envs=config.n_envs,
         vec_env="dummy",
         device=device,
+        cpu_threads=config.cpu_threads,
         enable_bidding=False,
         enable_weis=False,
         enable_stock=False,
@@ -178,6 +179,7 @@ def run_worker(config: BenchmarkConfig, device: str) -> dict[str, object]:
     training_seconds = finished - initialized
     result = {
         "device": device,
+        "cpu_threads": int(torch.get_num_threads()),
         "algorithm": "MaskablePPO-CTDE",
         "status": "ok",
         "requested_timesteps": config.total_timesteps,
@@ -277,7 +279,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rollouts", type=int, default=2)
     parser.add_argument("--net-arch", default="128,128")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--cpu-threads", type=int, default=min(4, os.cpu_count() or 1))
+    parser.add_argument("--cpu-threads", type=int, default=DEFAULT_CPU_THREADS)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     return parser.parse_args(argv)

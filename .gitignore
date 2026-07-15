@@ -27,6 +27,7 @@ models/
 replays/
 *.zip
 *.json
+!examples/*.json
 
 # Coverage
 .coverage
@@ -34,4 +35,3 @@ htmlcov/
 
 # Logs
 *.log
-

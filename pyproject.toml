@@ -27,6 +27,8 @@ dev = [
 ]
 
 [project.scripts]
+jass-advisor = "rl.advisor:main"
+jass-advisor-web = "rl.advisor_web:main"
 jass-play = "cli.play:main"
 jass-replay = "cli.replay:main"
 jass-train = "rl.train_selfplay:main"
@@ -35,7 +37,10 @@ jass-merge-evals = "rl.merge_evaluations:main"
 jass-qualify = "rl.qualify_hybrid:main"
 
 [tool.setuptools]
-packages = ["core", "core.announcements", "env", "rl", "cli"]
+packages = ["core", "core.announcements", "env", "rl", "rl.static", "cli"]
+
+[tool.setuptools.package-data]
+rl = ["static/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,7 +1,7 @@
 # Jass RL
 
 Rule-correct Swiss Schieber simulation, local MaskablePPO training, imperfect-
-information search, paired evaluation, and an eventual real-game advisor.  The
+information search, paired evaluation, and a real-game advisor.  The
 project is designed for an Apple M3 Pro with 36 GB unified memory and does not
 require CUDA or a hosted service.
 
@@ -19,21 +19,22 @@ require CUDA or a hosted service.
 - Evaluation uses independently shuffled duplicate deals, team swaps, balanced
   starters, strict ties, Wilson intervals, per-contract metrics, and measured
   inference time.
-- `220` tests and Ruff currently pass.  The PettingZoo API contract passes.
+- All `236` tests and Ruff currently pass.  The PettingZoo API contract passes.
 
 The latest qualification evidence for the neural-guided PIMC candidate is:
 
 | Track | Opponent | Games | Raw wins | Paired wins | Mean difference | Status |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| Full Schieber | random | 4,000 | 85.425% | 95.55% | +208.38 | qualified |
-| Full Schieber | strategic | 4,000 | 62.60% | 78.60% | +67.14 | qualified |
-| `verardo-v1` | clean-room reference | 400 | 71.75% | 88.00% | +38.09 | screen pass |
-| `verardo-v1` | random | 1,200 pooled | 89.00% | 97.33% | +80.47 | screen pass |
+| Full Schieber | random | 4,000 | 86.60% | 96.15% | +211.59 | qualified |
+| Full Schieber | strategic | 4,000 | 63.25% | 81.00% | +69.54 | qualified |
+| `verardo-v1` | clean-room reference | 4,000 | 70.05% | 89.10% | +39.19 | qualified |
+| `verardo-v1` | random | 4,000 | 87.88% | 97.75% | +77.81 | qualified |
 
-Formal gates require 4,000 games and 2,000 independent pairs per opponent.  The
-full-project gates are complete, but the external gates are not.  The
-visualization/advisor is deliberately not built until every gate passes; see
-[`docs/benchmark_goal.md`](docs/benchmark_goal.md).
+Every formal gate uses 4,000 games and 2,000 independent pairs.  All four gates
+pass.  The full and `verardo-v1` rows use different manifest-backed models and
+are never presented as evidence for one another.  See
+[`docs/benchmark_goal.md`](docs/benchmark_goal.md) for the gate definitions and
+the exact comparison caveat.
 
 ## Install and test
 
@@ -67,6 +68,7 @@ MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
   .venv/bin/python -m rl.train_selfplay \
   --profile standard --total-steps 1000000 --iterations 10 \
   --n-envs 8 --n-steps 1024 --batch-size 512 --n-epochs 4 \
+  --cpu-threads 8 \
   --opponent-mixture strategic=0.8,random=0.2 \
   --normalize-contract-reward --device cpu --seed 0
 ```
@@ -101,16 +103,41 @@ The search boundary accepts only the canonical observation and legal-action
 mask.  It never receives `GameState`, the environment object, or another
 player's hand.  CTDE model inference pads the private suffix with zeros.
 
+## Use the advisor
+
+Rank the legal cards in a public game state from the terminal:
+
+```bash
+.venv/bin/python -m rl.advisor \
+  models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \
+  examples/advisor_state.json
+```
+
+Start the local visual advisor with qualification evidence that matches that
+exact model and policy configuration:
+
+```bash
+.venv/bin/python -m rl.advisor_web \
+  models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \
+  --report models/experiments/formal_final_full_random_4000_seed49001.json \
+  --report models/experiments/formal_final_full_strategic_4000_seed49001.json
+```
+
+Open `http://127.0.0.1:8765/`.  Reports with a different checkpoint, rules
+profile, search configuration, or neural-guidance configuration are rejected at
+startup.  State format, relative-seat conventions, and real-table usage are in
+[`docs/advisor.md`](docs/advisor.md).
+
 ## External comparison
 
 The matched external protocol pins
 [`AlessioVerardo/jass-reinforcement-learning`](https://github.com/AlessioVerardo/jass-reinforcement-learning)
-at commit `4ec7c665ce740fa1d792f653875a63f755551e7c`.  That repository does not ship
-the reported checkpoint and has no declared license, so this project neither
-copies its source nor claims a direct checkpoint victory.  It uses an
-independently implemented, documented proxy for the published rule policy and
-a stricter paired protocol.  A direct head-to-head gate must be added if the
-original checkpoint becomes available.
+at commit `4ec7c665ce740fa1d792f653875a63f755551e7c`.  That repository declares MIT
+in `pyproject.toml` but has no standalone license file, and it does not ship the
+reported checkpoint.  This project uses an independently implemented,
+documented proxy for the published rule policy and a stricter paired protocol;
+it does not claim a direct checkpoint victory.  A direct head-to-head gate must
+be added if the original checkpoint becomes available.
 
 ## Repository layout
 

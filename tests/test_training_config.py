@@ -8,6 +8,7 @@ import torch
 from core.cards import MODE_TRUMP, SUITS
 from rl.run_manifest import write_manifest
 from rl.train_selfplay import (
+    DEFAULT_CPU_THREADS,
     TrainConfig,
     _atomic_model_save,
     _build_env,
@@ -43,6 +44,14 @@ def test_resume_rejects_hyperparameters_that_load_would_ignore() -> None:
     with pytest.raises(ValueError, match="n_steps"):
         assert_resume_training_compatible({"training_config": recorded}, config)
 
+    recorded = {
+        field: list(value) if isinstance(value, tuple) else value
+        for field, value in vars(config).items()
+    }
+    recorded.pop("cpu_threads")
+    with pytest.raises(ValueError, match="cpu_threads is unrecorded"):
+        assert_resume_training_compatible({"training_config": recorded}, config)
+
 
 @pytest.mark.parametrize(
     "config,match",
@@ -57,6 +66,7 @@ def test_resume_rejects_hyperparameters_that_load_would_ignore() -> None:
         ),
         (TrainConfig(selfplay=True, vec_env="subproc"), "vec-env dummy"),
         (TrainConfig(n_steps=10, n_envs=1, batch_size=6), "evenly divide"),
+        (TrainConfig(cpu_threads=0), "cpu_threads"),
         (TrainConfig(profile_name="missing"), "profile_name"),
     ],
 )
@@ -71,8 +81,17 @@ def test_cli_defaults_fit_m3_local_team_training() -> None:
     assert config.ctde is True
     assert config.randomize_starter is True
     assert config.net_arch == (512, 256)
+    assert config.cpu_threads == DEFAULT_CPU_THREADS
     assert config.save_dir == Path("models")
     config.validate()
+
+
+def test_cli_can_override_cpu_threads() -> None:
+    config = _parse_args(
+        ["--total-steps", "1024", "--iterations", "2", "--cpu-threads", "12"]
+    )
+
+    assert config.cpu_threads == 12
 
 
 def test_fixed_trump_curriculum_can_randomize_suit_each_round() -> None:

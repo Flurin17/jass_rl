@@ -15,7 +15,7 @@ MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
 
 The measured local microbenchmark is saved in
 `models/experiments/m3_training_resource_benchmark.json`.  With two environments,
-a 128x128 network, and 512 requested updates it measured:
+a 128x128 network, and 512 requested timesteps it measured:
 
 | Device | Steps/s | Peak RSS | Peak accelerator allocation |
 | --- | ---: | ---: | ---: |
@@ -27,11 +27,47 @@ runs use `--device cpu`.  MPS remains available, but should be selected only
 after rerunning `python -m rl.benchmark_training` with the intended network and
 rollout sizes.  Both measurements are far below the 28 GB project ceiling.
 
-## Reproduce the full-standard continuation
+Training now sets PyTorch's intra-op pool explicitly instead of accepting its
+host-dependent default.  On this 12-core M3 Pro, three runs of the actual
+512x256 CTDE network (`n_steps=1024`, `n_envs=8`, four epochs) averaged 2,708
+steps/s with eight threads, compared with 2,638 steps/s with PyTorch's former
+six-thread setting.  Twelve threads averaged 2,589 steps/s: the extra
+coordination cost outweighed the added cores for this network.  The portable
+default is therefore `--cpu-threads 8` (or every available CPU on smaller
+machines).  Use `--cpu-threads 12` when experimenting with larger networks, or
+reduce it to keep more desktop headroom; every value is recorded in the run
+manifest.
+
+The thread sweep used seeds `20260717`–`20260719`, one 1,024-step rollout per
+environment (8,192 transitions per run), eight environments, batch size 512,
+four epochs, and the 512/256 network:
+
+| PyTorch threads | Seed results (steps/s) | Mean steps/s |
+| ---: | --- | ---: |
+| 4 | 2,515.4 · 2,747.3 · 2,712.5 | 2,658.4 |
+| 6 | 2,769.9 · 2,518.8 · 2,625.3 | 2,638.0 |
+| 8 | 2,771.1 · 2,698.6 · 2,653.2 | **2,707.6** |
+| 12 | 2,572.3 · 2,597.3 · 2,596.4 | 2,588.7 |
+
+Reproduce one cell with:
+
+```bash
+.venv/bin/python -m rl.benchmark_training --devices cpu \
+  --n-steps 1024 --n-envs 8 --batch-size 512 --n-epochs 4 --rollouts 1 \
+  --net-arch 512,256 --cpu-threads 8 --seed 20260717
+```
+
+## Full-standard continuation
 
 The strongest full Schieber checkpoint was continued from the strict trump-only
 checkpoint with the complete standard profile and a deterministic 80/20
 strategic/random opponent curriculum:
+
+The qualified historical run used PyTorch's then-unrecorded six-thread host
+default.  For an exact numerical lineage, use `--cpu-threads 6`.  The command
+below uses the newly measured eight-thread recommendation; it reproduces the
+training design and should improve throughput, but intentionally produces a new
+model hash and trajectory.
 
 ```bash
 MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
@@ -42,6 +78,7 @@ MPLCONFIGDIR=./.cache/matplotlib XDG_CACHE_HOME=./.cache \
   --opponent-mixture strategic=0.8,random=0.2 \
   --total-steps 3000000 --iterations 24 \
   --n-envs 8 --vec-env dummy --n-steps 1024 --batch-size 512 --n-epochs 4 \
+  --cpu-threads 8 \
   --net-arch 512,256 --learning-rate 0.00005 --ent-coef 0.002 \
   --gamma 1.0 --gae-lambda 0.98 \
   --reward-scale 0.004 --terminal-win-bonus 0.5 \
@@ -63,24 +100,47 @@ configured raw-point gap.  The formal CLI validates the run manifest, model
 hash, actor privacy boundary, rules profile, paired schedule, and every gate:
 
 ```bash
-# Full Schieber, run once for each opponent (4,000 games / 2,000 pairs each).
+# Full Schieber: run the same command for `random` and `strategic`.
 .venv/bin/python -m rl.qualify_hybrid \
   models/experiments/ppo_full_consolidation_v1/20260715_095439/model_final.zip \
   --benchmark full --opponents strategic --episodes 4000 --seed 49001 \
   --determinizations 24 --max-rollouts 216 --common-random-numbers \
   --opponent-rollout-policy generic --max-search-gap 3 \
   --min-neural-probability 0.5 --device cpu \
-  --output models/experiments/formal_full_strategic_4000_seed49001.json
+  --output models/experiments/formal_final_full_strategic_4000_seed49001.json
 
-# Pinned clean-room reference. Bid inference is public but reference-specific,
-# so it may not be mislabeled or reused for the random-opponent report.
+# Substitute `--opponents random` and this output for the other full gate:
+# models/experiments/formal_final_full_random_4000_seed49001.json
+
+# External reference shard. Repeat with seeds 59001, 59501, 60001, and 60501.
 .venv/bin/python -m rl.qualify_hybrid \
   models/experiments/ppo_verardo_full_v1/20260715_093548/model_final.zip \
-  --benchmark external --opponents verardo --episodes 4000 --seed 59001 \
+  --benchmark external --opponents verardo --episodes 1000 --seed 59001 \
   --determinizations 24 --max-rollouts 216 --common-random-numbers \
   --opponent-rollout-policy verardo --infer-opponent-bids \
+  --terminal-win-bonus 30 --max-search-gap 3 \
+  --min-neural-probability 0.5 --device cpu \
+  --output models/experiments/formal_external_reference_shard_59001_1000.json
+
+# External-random shard. Repeat with seeds 61001, 61501, 62001, and 62501.
+.venv/bin/python -m rl.qualify_hybrid \
+  models/experiments/ppo_verardo_full_v1/20260715_093548/model_final.zip \
+  --benchmark external --opponents verardo-random --episodes 1000 --seed 61001 \
+  --determinizations 24 --max-rollouts 216 --common-random-numbers \
+  --opponent-rollout-policy random --terminal-win-bonus 60 \
   --max-search-gap 3 --min-neural-probability 0.5 --device cpu \
-  --output models/experiments/formal_external_reference_4000_seed59001.json
+  --output models/experiments/formal_external_random_shard_61001_1000.json
+
+# Merge each four-shard family; the merger rejects overlapping deal seeds,
+# policy/configuration drift, dirty provenance, and any total other than 4,000.
+.venv/bin/python -m rl.merge_evaluations \
+  models/experiments/formal_external_reference_shard_*_1000.json \
+  --required-games 4000 \
+  --output models/experiments/formal_final_external_reference_4000_merged.json
+.venv/bin/python -m rl.merge_evaluations \
+  models/experiments/formal_external_random_shard_*_1000.json \
+  --required-games 4000 \
+  --output models/experiments/formal_final_external_random_4000_merged.json
 ```
 
 Development screens are not qualification.  The exact gates, tie handling, and

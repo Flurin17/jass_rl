@@ -43,6 +43,7 @@ def test_tiny_cpu_worker_reports_exact_steps_and_memory() -> None:
 
     assert result["status"] == "ok"
     assert result["algorithm"] == "MaskablePPO-CTDE"
+    assert result["cpu_threads"] == 1
     assert result["requested_timesteps"] == result["actual_timesteps"] == 8
     assert result["steps_per_second"] > 0
     assert result["peak_rss_bytes"] > 0

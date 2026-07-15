@@ -1,0 +1,25 @@
+{
+  "hand": [
+    "schellen:A",
+    "schellen:10",
+    "rosen:K",
+    "rosen:8",
+    "schilten:J",
+    "schilten:9",
+    "eicheln:A",
+    "eicheln:Q",
+    "eicheln:6"
+  ],
+  "completed_tricks": [],
+  "current_trick": [],
+  "mode": "trump",
+  "trump_suit": "schilten",
+  "leader": 0,
+  "team_points": [0, 0],
+  "bidding_enabled": true,
+  "bid_starter": 0,
+  "bid_chooser": 0,
+  "bid_pushed": false,
+  "announcement_enabled": true,
+  "announcement_status": ["pass", "pass", "pass", "pass"]
+}

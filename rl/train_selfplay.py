@@ -4,8 +4,12 @@ import argparse
 import datetime
 import hashlib
 import math
+import os
 import random
 import re
+import resource
+import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Real
@@ -69,6 +73,12 @@ _LEGACY_SELFPLAY_FALLBACK_MIXTURE: OpponentMixture = (
     ("strategic", 0.65),
     ("random", 0.35),
 )
+
+# Eight intra-op workers gave the best mean throughput for the default 512x256
+# CTDE policy on the supported 12-core M3 Pro while leaving headroom for the OS.
+# Cap the portable default so high-core-count hosts do not oversubscribe this
+# comparatively small network; callers can still select any positive value.
+DEFAULT_CPU_THREADS = min(8, os.cpu_count() or 1)
 
 
 def normalized_opponent_mixture(mixture: OpponentMixture) -> OpponentMixture:
@@ -141,6 +151,7 @@ class TrainConfig:
     n_envs: int = 8
     vec_env: str = "dummy"
     device: str = "auto"
+    cpu_threads: int = DEFAULT_CPU_THREADS
     save_dir: Path = Path("models")
     resume: Path | None = None
     initialize_from: Path | None = None
@@ -182,6 +193,7 @@ class TrainConfig:
             "batch_size": self.batch_size,
             "n_epochs": self.n_epochs,
             "n_envs": self.n_envs,
+            "cpu_threads": self.cpu_threads,
             "opponent_pool_size": self.opponent_pool_size,
         }
         for name, value in integer_fields.items():
@@ -302,6 +314,7 @@ _RESUME_COMPATIBLE_FIELDS = (
     "batch_size",
     "n_epochs",
     "n_envs",
+    "cpu_threads",
     "vec_env",
     "selfplay",
     "selfplay_prob",
@@ -331,7 +344,9 @@ def assert_resume_training_compatible(
             expected = [list(entry) for entry in expected]
         elif isinstance(expected, tuple):
             expected = list(expected)
-        if recorded.get(field) != expected:
+        if field not in recorded:
+            mismatches.append(f"{field} is unrecorded in the original manifest")
+        elif recorded.get(field) != expected:
             mismatches.append(f"{field} {recorded.get(field)!r} != {expected!r}")
     if mismatches:
         raise ValueError("Resume training incompatibility: " + "; ".join(mismatches))
@@ -822,6 +837,13 @@ def _load_run_fork(
 
 def train(config: TrainConfig) -> Path:
     config.validate()
+    workflow_started = time.perf_counter()
+    import torch
+
+    # PyTorch otherwise chooses a host-dependent value (six on the supported
+    # M3 Pro), making resource use and throughput less reproducible.  Configure
+    # it before constructing either the policy or optimizer.
+    torch.set_num_threads(config.cpu_threads)
     config.save_dir.mkdir(parents=True, exist_ok=True)
 
     opponent_pool = (
@@ -986,6 +1008,25 @@ def train(config: TrainConfig) -> Path:
     manifest_path = run_dir / MANIFEST_FILENAME
     write_manifest(manifest_path, manifest)
     durable_timesteps = int(model.num_timesteps)
+    invocation_start_timesteps = durable_timesteps
+    learning_seconds = 0.0
+
+    def record_resource_usage() -> None:
+        elapsed = time.perf_counter() - workflow_started
+        trained = int(model.num_timesteps) - invocation_start_timesteps
+        raw_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        manifest["resource_usage"] = {
+            "device": str(getattr(model, "device", config.device)),
+            "cpu_threads": int(torch.get_num_threads()),
+            "workflow_seconds": elapsed,
+            "learning_seconds": learning_seconds,
+            "trained_timesteps_this_invocation": trained,
+            "steps_per_learning_second": (
+                trained / learning_seconds if learning_seconds > 0.0 else None
+            ),
+            "peak_rss_bytes": int(raw_peak if sys.platform == "darwin" else raw_peak * 1024),
+        }
+
     try:
         for chunk in chunks:
             before = int(model.num_timesteps)
@@ -996,7 +1037,11 @@ def train(config: TrainConfig) -> Path:
             # with the same chunk plan without serializing private environment state.
             model._last_obs = None
             model._last_episode_starts = None
-            model.learn(total_timesteps=chunk, reset_num_timesteps=False)
+            learning_started = time.perf_counter()
+            try:
+                model.learn(total_timesteps=chunk, reset_num_timesteps=False)
+            finally:
+                learning_seconds += time.perf_counter() - learning_started
             if model.num_timesteps != before + chunk:
                 raise RuntimeError(
                     f"MaskablePPO advanced {model.num_timesteps - before} steps; "
@@ -1017,6 +1062,7 @@ def train(config: TrainConfig) -> Path:
             }
             manifest["latest_checkpoint"] = checkpoint.name
             manifest["last_chunk_seed"] = seed_for_chunk
+            record_resource_usage()
             durable_timesteps = int(model.num_timesteps)
             write_manifest(manifest_path, manifest)
 
@@ -1027,6 +1073,7 @@ def train(config: TrainConfig) -> Path:
         manifest["final_model"] = final_path.name
         manifest["final_model_sha256"] = _file_sha256(final_path)
         manifest["final_model_stale"] = False
+        record_resource_usage()
         write_manifest(manifest_path, manifest)
         return final_path
     except BaseException as exc:
@@ -1034,6 +1081,7 @@ def train(config: TrainConfig) -> Path:
         manifest["last_attempted_timesteps"] = int(model.num_timesteps)
         manifest["actual_timesteps"] = durable_timesteps
         manifest["error"] = f"{type(exc).__name__}: {exc}"
+        record_resource_usage()
         write_manifest(manifest_path, manifest)
         raise
     finally:
@@ -1067,6 +1115,12 @@ def _parse_args(argv: list[str] | None = None) -> TrainConfig:
     parser.add_argument("--n-envs", type=int, default=8)
     parser.add_argument("--vec-env", choices=["dummy", "subproc"], default="dummy")
     parser.add_argument("--device", default="auto")
+    parser.add_argument(
+        "--cpu-threads",
+        type=int,
+        default=DEFAULT_CPU_THREADS,
+        help="PyTorch intra-op workers (default: min(8, available CPUs))",
+    )
     parser.add_argument("--save-dir", default="models")
     parser.add_argument("--resume")
     parser.add_argument("--initialize-from")
@@ -1123,6 +1177,7 @@ def _parse_args(argv: list[str] | None = None) -> TrainConfig:
         n_envs=args.n_envs,
         vec_env=args.vec_env,
         device=args.device,
+        cpu_threads=args.cpu_threads,
         save_dir=Path(args.save_dir),
         resume=Path(args.resume) if args.resume else None,
         initialize_from=(Path(args.initialize_from) if args.initialize_from else None),

@@ -114,6 +114,7 @@ class EvaluationEnvironment:
     reward_scale: float
     terminal_win_bonus: float
     profile: RulesetConfig
+    trump_only_bidding: bool = False
     ctde: bool = False
     actor_observation_shape: tuple[int, ...] = (OBS_SIZE,)
     training_observation_shape: tuple[int, ...] = (OBS_SIZE,)
@@ -173,6 +174,12 @@ class EvaluationEnvironment:
         elif privileged_payload is not None:
             raise ValueError("non-CTDE manifest cannot declare a privileged observation schema")
 
+        trump_only_bidding = payload.get("trump_only_bidding", False)
+        if not isinstance(trump_only_bidding, bool):
+            raise ValueError("manifest environment.trump_only_bidding must be a boolean")
+        if trump_only_bidding and not payload.get("enable_bidding"):
+            raise ValueError("trump-only bidding requires bidding to be enabled")
+
         environment = cls(
             control_team=_required_bool(payload, "control_team"),
             enable_bidding=_required_bool(payload, "enable_bidding"),
@@ -188,6 +195,7 @@ class EvaluationEnvironment:
                 non_negative=True,
             ),
             profile=profile,
+            trump_only_bidding=trump_only_bidding,
             ctde=ctde,
             actor_observation_shape=actor_shape,
             training_observation_shape=training_shape,
@@ -199,6 +207,7 @@ class EvaluationEnvironment:
         return {
             "control_team": self.control_team,
             "enable_bidding": self.enable_bidding,
+            "trump_only_bidding": self.trump_only_bidding,
             "enable_weis": self.enable_weis,
             "enable_stock": self.enable_stock,
             "mode": self.mode,
@@ -237,6 +246,7 @@ class EvaluationEnvironment:
             starters=(0, 1, 2, 3),
             swap_teams=True,
             enable_bidding=self.enable_bidding,
+            trump_only_bidding=self.trump_only_bidding,
             enable_weis=self.enable_weis,
             enable_stock=self.enable_stock,
             profile=self.profile,
@@ -315,7 +325,7 @@ def evaluate(
     """Evaluate a model and atomically persist its reproducible JSON report."""
 
     config.validate()
-    model_path = _resolve_model_path(config.model_path)
+    model_path = resolve_model_path(config.model_path)
     output_path = config.output_path or model_path.parent / DEFAULT_REPORT_FILENAME
     if output_path.resolve() == model_path:
         raise ValueError("output_path must not overwrite the model")
@@ -325,7 +335,7 @@ def evaluate(
 
     loader = model_loader or _load_maskable_model
     model = loader(model_path, config.device)
-    actor_privacy_validated = _assert_model_spaces(
+    actor_privacy_validated = assert_model_spaces(
         model,
         context.environment.training_observation_shape,
         ctde=context.environment.ctde,
@@ -447,6 +457,7 @@ def _is_full_project_environment(environment: EvaluationEnvironment) -> bool:
     return bool(
         environment.control_team
         and environment.enable_bidding
+        and not environment.trump_only_bidding
         and environment.enable_weis
         and environment.enable_stock
         and environment.mode is None
@@ -456,7 +467,9 @@ def _is_full_project_environment(environment: EvaluationEnvironment) -> bool:
     )
 
 
-def _resolve_model_path(path: Path) -> Path:
+def resolve_model_path(path: Path) -> Path:
+    """Resolve a model archive, accepting an omitted ``.zip`` suffix."""
+
     candidate = path.expanduser()
     if not candidate.exists() and candidate.suffix != ".zip":
         archive = candidate.with_suffix(".zip")
@@ -485,7 +498,7 @@ def _load_context(model_path: Path, config: EvalConfig) -> EvaluationContext:
             action_count=ACTION_COUNT,
             environment=environment.to_manifest_dict(),
         )
-        artifact_hash_validated = _assert_model_belongs_to_run(model_path, manifest)
+        artifact_hash_validated = assert_model_belongs_to_run(model_path, manifest)
     except (FileNotFoundError, ValueError, TypeError) as exc:
         if not config.allow_legacy:
             raise
@@ -533,10 +546,17 @@ def _legacy_environment(config: EvalConfig) -> EvaluationEnvironment:
     )
 
 
-def _assert_model_belongs_to_run(
+def assert_model_belongs_to_run(
     model_path: Path,
     manifest: Mapping[str, Any],
 ) -> bool:
+    """Validate that a model is listed in, and hashed by, its run manifest.
+
+    The boolean is false only for an older manifest that lists the checkpoint
+    but predates artifact hashes.  Consumers such as the real-game advisor can
+    require a true result while evaluation can retain an explicit legacy flag.
+    """
+
     known_models: set[str] = set()
     final_model = manifest.get("final_model")
     if isinstance(final_model, str):
@@ -572,12 +592,14 @@ def _load_maskable_model(model_path: Path, device: str) -> object:
     return MaskablePPO.load(model_path, device=device)
 
 
-def _assert_model_spaces(
+def assert_model_spaces(
     model: object,
     expected_shape: tuple[int, ...],
     *,
     ctde: bool,
 ) -> bool:
+    """Validate action/observation spaces and the CTDE public-actor boundary."""
+
     observation_shape = tuple(getattr(getattr(model, "observation_space", None), "shape", ()))
     if observation_shape != expected_shape:
         raise ValueError(
@@ -689,6 +711,7 @@ def _opponent_payload(
 def _tournament_environment(config: TournamentConfig) -> dict[str, Any]:
     return {
         "enable_bidding": config.enable_bidding,
+        "trump_only_bidding": config.trump_only_bidding,
         "enable_weis": config.enable_weis,
         "enable_stock": config.enable_stock,
         "modes": list(config.modes),
@@ -878,6 +901,9 @@ __all__ = [
     "EVALUATION_REPORT_VERSION",
     "EvalConfig",
     "EvaluationEnvironment",
+    "assert_model_belongs_to_run",
+    "assert_model_spaces",
     "evaluate",
     "main",
+    "resolve_model_path",
 ]
