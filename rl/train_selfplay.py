@@ -352,6 +352,36 @@ def assert_resume_training_compatible(
         raise ValueError("Resume training incompatibility: " + "; ".join(mismatches))
 
 
+def assert_resume_git_compatible(
+    original_git: object,
+    current_git: dict[str, object],
+) -> None:
+    """Require a resume to use the exact recorded commit and working tree."""
+
+    if not isinstance(original_git, dict):
+        raise ValueError(
+            "run manifest has no git provenance mapping; refusing mixed-lineage resume"
+        )
+    original_commit = original_git.get("commit")
+    current_commit = current_git.get("commit")
+    if not isinstance(original_commit, str) or not isinstance(current_commit, str):
+        raise ValueError(
+            "git commit provenance is missing; refusing mixed-lineage resume"
+        )
+    if original_commit != current_commit:
+        raise ValueError(
+            "git commit changed since this run started "
+            f"(recorded {original_commit!r}, current {current_commit!r}); "
+            "refusing mixed-lineage resume"
+        )
+    if original_git.get("working_tree_sha256") != current_git.get(
+        "working_tree_sha256"
+    ):
+        raise ValueError(
+            "working tree changed since this run started; refusing mixed-lineage resume"
+        )
+
+
 class OpponentPool:
     """Bounded historical-policy league shared by in-process environments."""
 
@@ -870,12 +900,7 @@ def train(config: TrainConfig) -> Path:
             _verify_manifest_model_hash(model_path, existing)
             original_git = existing.get("git")
             current_git = git_metadata(repo_root)
-            if not isinstance(original_git, dict) or original_git.get(
-                "working_tree_sha256"
-            ) != current_git.get("working_tree_sha256"):
-                raise ValueError(
-                    "working tree changed since this run started; refusing mixed-lineage resume"
-                )
+            assert_resume_git_compatible(original_git, current_git)
             assert_compatible(
                 existing,
                 observation_schema_version=OBSERVATION_SCHEMA_VERSION,

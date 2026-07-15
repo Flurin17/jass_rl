@@ -16,6 +16,7 @@ from rl.train_selfplay import (
     _parse_args,
     _predict_preserving_rng,
     _resume_model_path,
+    assert_resume_git_compatible,
     assert_resume_training_compatible,
     rollout_chunks,
     split_steps,
@@ -51,6 +52,40 @@ def test_resume_rejects_hyperparameters_that_load_would_ignore() -> None:
     recorded.pop("cpu_threads")
     with pytest.raises(ValueError, match="cpu_threads is unrecorded"):
         assert_resume_training_compatible({"training_config": recorded}, config)
+
+
+def test_resume_accepts_exact_git_provenance() -> None:
+    original = {"commit": "abc123", "working_tree_sha256": "tree123"}
+    current = {"commit": "abc123", "working_tree_sha256": "tree123"}
+
+    assert_resume_git_compatible(original, current)
+
+
+def test_resume_rejects_different_git_commit_even_when_tree_matches() -> None:
+    original = {"commit": "abc123", "working_tree_sha256": "tree123"}
+    current = {"commit": "def456", "working_tree_sha256": "tree123"}
+
+    with pytest.raises(
+        ValueError,
+        match=r"git commit changed.*recorded 'abc123', current 'def456'",
+    ):
+        assert_resume_git_compatible(original, current)
+
+
+def test_resume_rejects_different_working_tree_on_same_commit() -> None:
+    original = {"commit": "abc123", "working_tree_sha256": "tree123"}
+    current = {"commit": "abc123", "working_tree_sha256": "tree456"}
+
+    with pytest.raises(ValueError, match="working tree changed"):
+        assert_resume_git_compatible(original, current)
+
+
+@pytest.mark.parametrize("original", [None, {}, {"working_tree_sha256": "tree123"}])
+def test_resume_rejects_missing_git_commit_provenance(original: object) -> None:
+    current = {"commit": "abc123", "working_tree_sha256": "tree123"}
+
+    with pytest.raises(ValueError, match="git.*provenance"):
+        assert_resume_git_compatible(original, current)
 
 
 @pytest.mark.parametrize(
